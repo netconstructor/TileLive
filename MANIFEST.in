@@ -7,4 +7,3 @@ include README.txt
 recursive-include docs *
 recursive-include utils *
 recursive-include demo *
-

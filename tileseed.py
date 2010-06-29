@@ -146,7 +146,7 @@ def render_tiles(bbox, minZoom,maxZoom, data, mapfile, url):
 if __name__ == "__main__":
     """ run as a command-line tool """
 
-    parser = OptionParser(usage="""%prog [options] [zoom...]""")
+    parser = OptionParser(usage="""%prog [options] [zoom...]""", version='0.1.3.1')
     parser.add_option('-d', '--data', dest='data',
                   help='Data URL')
 
@@ -165,6 +165,8 @@ if __name__ == "__main__":
 
     options, zooms = parser.parse_args()
 
-    bbox = (-180.0,-90.0, 180.0,90.0)
-
-    render_tiles(bbox, 0, 5, options.data, options.mapfile, options.url)
+    if options.data and options.url and options.extension:
+        bbox = (-180.0,-90.0, 180.0,90.0)
+        render_tiles(bbox, 0, 5, options.data, options.mapfile, options.url)
+    else:
+        parser.error("required arguments missing")
