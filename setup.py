@@ -19,7 +19,7 @@ setup(name='%s' % app,
       license='BSD',
       url=url,
       packages=['tilelite'],
-      scripts = ['liteserv.py'],
+      scripts = ['liteserv.py', 'tileseed.py'],
       classifiers=[
             'Development Status :: 4 - Beta',
             'Environment :: Web Environment',
