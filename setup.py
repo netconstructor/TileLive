@@ -2,28 +2,28 @@
 
 from distutils.core import setup
 
-version = '0.1.3'
-app = 'tilelite'
+# this version only updates the last number
+version = '0.1.3.0'
+app = 'tilelive'
 description = 'Lightweight WSGI tile-server, written in Python, using Mapnik rendering and designed to serve tiles in the OSM/Google scheme.'
-url = 'http://bitbucket.org/springmeyer/%s/' % app
-readme = file('README.txt','rb').read()
+readme = file('README.markdown','rb').read()
 
 setup(name='%s' % app,
-      version=version,
-      description=description,
-      #long_description=readme,
-      author='Dane Springmeyer',
-      author_email='dbsgeo@gmail.com',
-      requires=['Mapnik'],
-      keywords='mapnik,gis,geospatial,openstreetmap,tiles,cache',
-      license='BSD',
-      url=url,
-      packages=['tilelite'],
-      scripts = ['liteserv.py', 'tileseed.py'],
+      version = version,
+      description = description,
+      # long_description=readme,
+      author = 'Dane Springmeyer, Tom MacWright',
+      author_email = 'dbsgeo@gmail.com, macwright@gmail.com',
+      requires = ['Mapnik'],
+      keywords = 'mapnik,gis,geospatial,openstreetmap,tiles,cache',
+      license = 'BSD',
+      url = 'http://github.com/tmcw/TileLiteLive',
+      download_url = "http://github.com/tmcw/TileLiteLive/zipball/v0.1.3.0#egg=tilelive-0.1.3.0",
+      packages = ['tilelive'],
+      scripts = ['liveserv.py', 'tileseed.py'],
       classifiers=[
             'Development Status :: 4 - Beta',
             'Environment :: Web Environment',
-            'Framework :: Django',
             'Intended Audience :: Developers',
             'License :: OSI Approved :: BSD License',
             'Intended Audience :: Science/Research',

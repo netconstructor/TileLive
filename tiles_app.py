@@ -50,8 +50,8 @@ def append_local_dir():
 # only needed if you have not already installed in site-packages
 #append_local_dir()
 
-from tilelite.server import Server
+from tilelive.server import Server
 
-config = "tilelite.cfg" 
+config = "tilelive.cfg" 
 # note: this variable must be called 'application'
 application = Server(config)
