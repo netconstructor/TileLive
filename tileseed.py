@@ -1,4 +1,5 @@
 #!/usr/bin/python
+
 from math import pi,cos,sin,log,exp,atan
 from subprocess import call
 import sys, os
@@ -8,6 +9,12 @@ import threading
 from base64 import urlsafe_b64encode
 from urlparse import urlparse
 import httplib, time
+
+"""
+
+  A HTTP-based seeding script based on code from generate_tiles.py
+
+"""
 
 DEG_TO_RAD = pi/180
 RAD_TO_DEG = 180/pi
@@ -36,14 +43,16 @@ class GoogleProjection:
             self.Ac.append(c)
             c *= 2
                 
-    def fromLLtoPixel(self,ll,zoom):
+    def fromLLtoPixel(self, ll, zoom):
+         """ given a latitude and longitude and zoom level, return tuple of x, y """
          d = self.zc[zoom]
          e = round(d[0] + ll[0] * self.Bc[zoom])
          f = minmax(sin(DEG_TO_RAD * ll[1]),-0.9999,0.9999)
          g = round(d[1] + 0.5*log((1+f)/(1-f))*-self.Cc[zoom])
          return (e,g)
      
-    def fromPixelToLL(self,px,zoom):
+    def fromPixelToLL(self, px, zoom):
+         """ given a pixel and zoom level, return lat, lon tuple """
          e = self.zc[zoom]
          f = (px[0] - e[0])/self.Bc[zoom]
          g = (px[1] - e[1])/-self.Cc[zoom]
@@ -59,6 +68,7 @@ class RenderThread:
         self.tileproj = GoogleProjection(maxZoom+1)
 
     def timed_transfer(self, path):
+        """ test a transfer by loading a file but not downloading it to anywhere """
         pts = urlparse(path)
         conn = httplib.HTTPConnection(pts.hostname, pts.port)
         start = time.time()  
@@ -70,6 +80,7 @@ class RenderThread:
         print "%s took %.5f" % (path, (response_time - start))
 
     def loop(self):
+        """ iterate through all necessary tiles, running timed_transfer for each """
         while True:
             #Fetch a tile from the queue and render it
             r = self.q.get()
@@ -133,6 +144,8 @@ def render_tiles(bbox, minZoom,maxZoom, data, mapfile, url):
         renderers[i].join()
 
 if __name__ == "__main__":
+    """ run as a command-line tool """
+
     parser = OptionParser(usage="""%prog [options] [zoom...]""")
     parser.add_option('-d', '--data', dest='data',
                   help='Data URL')
