@@ -5,11 +5,10 @@ __copyright__ = 'Copyright 2009, Dane Springmeyer'
 __version__ = '0.1.3'
 __license__ = 'BSD'
 
-import os, sys, time, math, urllib, tempfile, httplib2, base64
-import urllib2, zipfile, fnmatch, re, shutil, json, cgi
+import os, sys, time, re, json
 from urlparse import parse_qs
 
-from tilelite import cache, sphericalmercator
+from tilelive import cache, sphericalmercator
 from sphericalmercator import SphericalMercator
 
 try:
