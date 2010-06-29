@@ -125,7 +125,7 @@ def render_tiles(bbox, minZoom,maxZoom, data, mapfile, url):
                 if (y < 0) or (y >= 2**z):
                     continue
                 tile_uri = "%s/%s/%s/%d/%d/%d.png" % (
-                        url,
+                        url.rstrip('/'),
                         urlsafe_b64encode(options.data),
                         urlsafe_b64encode(options.mapfile),
                         z,
@@ -167,6 +167,6 @@ if __name__ == "__main__":
 
     if options.data and options.url and options.extension:
         bbox = (-180.0,-90.0, 180.0,90.0)
-        render_tiles(bbox, 0, 5, options.data, options.mapfile, options.url)
+        render_tiles(bbox, int(zooms[0]), int(zooms[1]), options.data, options.mapfile, options.url)
     else:
         parser.error("required arguments missing")
