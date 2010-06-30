@@ -77,13 +77,12 @@ class Server(object):
         self.map_cache_path = 'mapfiles' #tempfile.gettempdir()
         self.data_cache_path = 'data' #tempfile.gettempdir()
 
-        self.whitelist_data = "*" 
-        self.whitelist_mapfile= "*" 
+        self.whitelist_data = ".*" 
+        self.whitelist_mapfile= ".*" 
 
         if self._config:
             self.absorb_options(parse_config(self._config))
-
-        self._key = parse_config(self._config)['_key']
+            self._key = parse_config(self._config)['_key']
 
         self._whitelist_data_re = re.compile(self.whitelist_data)
         self._whitelist_mapfile_re = re.compile(self.whitelist_mapfile)
@@ -188,19 +187,19 @@ class Server(object):
                 response = self._im.tostring(self.format)
                 self.msg('cache hit!')
 
-            elif path_info.endswith('cache.json'):
-                # Cache status as JSON
-                length = int(environ.get('CONTENT_LENGTH', '0'))
-                qs = environ['wsgi.input'].read(length)
-                q = parse_qs(qs)
-                
-                mime_type = 'application/json'
-                response = json.dumps(
-                    {
-                      'data': self._data_cache.list(),
-                      'mapfile': self._map_cache.list()
-                    }
-                )
+        elif path_info.endswith('cache.json'):
+            # Cache status as JSON
+            length = int(environ.get('CONTENT_LENGTH', '0'))
+            qs = environ['wsgi.input'].read(length)
+            q = parse_qs(qs)
+            
+            mime_type = 'application/json'
+            response = json.dumps(
+                {
+                  'data': self._data_cache.list(),
+                  'mapfile': self._map_cache.list()
+                }
+            )
 
         elif path_info.endswith('cache/'):
             # Cache control via request
