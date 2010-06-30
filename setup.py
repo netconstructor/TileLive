@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 # this version only updates the last number
-version = '0.1.3.1'
+version = '0.1.3.2'
 app = 'tilelive'
 description = 'Lightweight WSGI tile-server, written in Python, using Mapnik rendering and designed to serve tiles in the OSM/Google scheme.'
 readme = file('README.markdown','rb').read()
@@ -18,7 +18,7 @@ setup(name='%s' % app,
       keywords = 'mapnik,gis,geospatial,openstreetmap,tiles,cache',
       license = 'BSD',
       url = 'http://github.com/tmcw/TileLiteLive',
-      download_url = "http://github.com/tmcw/TileLiteLive/zipball/v0.1.3.1#egg=tilelive-0.1.3.1",
+      download_url = "http://github.com/tmcw/TileLiteLive/zipball/v0.1.3.2#egg=tilelive-0.1.3.2",
       packages = ['tilelive'],
       scripts = ['liveserv.py', 'tileseed.py'],
       classifiers=[
