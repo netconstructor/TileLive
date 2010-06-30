@@ -90,6 +90,7 @@ class RenderThread:
             else:
                 (tile_uri, x, y, z) = r
             self.timed_transfer(tile_uri)
+            self.q.task_done()
 
 def render_tiles(bbox, minZoom,maxZoom, data, mapfile, url):
     print "render_tiles(",bbox, data, mapfile, url, ")"
@@ -140,7 +141,7 @@ def render_tiles(bbox, minZoom,maxZoom, data, mapfile, url):
         queue.put(None)
     # wait for pending rendering jobs to complete
     queue.join()
-    for i in range(num_threads):
+    for i in range(NUM_THREADS):
         renderers[i].join()
 
 if __name__ == "__main__":
