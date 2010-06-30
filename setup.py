@@ -18,7 +18,7 @@ setup(name='%s' % app,
       keywords = 'mapnik,gis,geospatial,openstreetmap,tiles,cache',
       license = 'BSD',
       url = 'http://github.com/tmcw/TileLiteLive',
-      download_url = "http://github.com/tmcw/TileLiteLive/zipball/v0.1.3.2#egg=tilelive-0.1.3.2",
+      download_url = "http://github.com/tmcw/TileLiteLive/zipball/v0.1.3.2b#egg=tilelive-0.1.3.2",
       packages = ['tilelive'],
       scripts = ['liveserv.py', 'tileseed.py'],
       classifiers=[
