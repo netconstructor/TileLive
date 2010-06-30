@@ -71,8 +71,6 @@ class Server(object):
         self.format = 'png'
         self.max_zoom = 18
         self.debug = True
-        self.watch_interval = 2
-        self.max_failures = 6
 
         self.cache_force = False
         self.cache_path = '/tmp/tilelite' #tempfile.gettempdir()
@@ -96,8 +94,7 @@ class Server(object):
         self._im = mapnik.Image(self.size, self.size)
                
     def msg(self,message):
-        """ WSGI apps must not print to stdout.
-        """
+        """ WSGI apps must not print to stdout. """
         if self.debug:
             print >> sys.stderr, '[TileLite Debug] --> %s' % message
 
@@ -110,27 +107,6 @@ class Server(object):
                 settings += '%s = %s\n' % (k,v)
         return settings
 
-    def settings_dict(self):
-        settings = {}
-        for k,v in self.__dict__.items():
-            if not k.startswith('_'):
-                settings[k] = v
-        return settings
-
-    def instance_dict(self):
-        d = {}
-        m = self._mapnik_map
-        m.zoom_all()
-        e = m.envelope()
-        c = e.center()
-        e2 = mercator.inverse(e)
-        c2 = e2.center()
-        d['extent'] = [e.minx,e.miny,e.maxx,e.maxy]
-        d['center'] = [c.x,c.y]
-        d['lonlat_extent'] = [e2.minx,e2.miny,e2.maxx,e2.maxy]
-        d['lonlat_center'] = [c2.x,c2.y]        
-        return d
-        
     def absorb_options(self, opts):
         """ parse settings file and append settings to self object """
         for opt in opts.items():
@@ -151,17 +127,6 @@ class Server(object):
 
     def hit(self, env):
         return self.envelope.intersects(env)
-
-    def settings_page():
-        """/settings"""
-        mime_type = 'text/html'
-        response = '<h2>TileLite Settings</h2>'
-        response += '<pre>%s</pre>' % (self.settings())
-        if self._config:
-            response += '<h4>From: %s</h4>' % self._config
-        else:
-            response += '<h4>*default settings*</h4>'
-        return (mime_type, response)
 
     def render_map(self, x, y, zoom, data, mapfile):
         """ given the parameters for a tile, return a tile. requires
@@ -222,30 +187,20 @@ class Server(object):
                 mime_type = 'image/%s' % self.format
                 response = self._im.tostring(self.format)
                 self.msg('cache hit!')
-                    
-        elif path_info.endswith('settings/'):
-            # Settings page
-            (mime_type, response) = self.settings_page()
 
-        elif path_info.endswith('cache.json'):
-            # Cache status as JSON
-            
-            length = int(environ.get('CONTENT_LENGTH', '0'))
-            qs = environ['wsgi.input'].read(length)
-            q = parse_qs(qs)
-            
-            mime_type = 'application/json'
-            response = json.dumps(
-                {
-                  'data': self._data_cache.list(),
-                  'mapfile': self._map_cache.list()
-                }
-            )
-
-        elif path_info.endswith('settings.json'):
-            # Settings as JSON
-            mime_type = 'application/json'
-            response = str(self.settings_dict())
+            elif path_info.endswith('cache.json'):
+                # Cache status as JSON
+                length = int(environ.get('CONTENT_LENGTH', '0'))
+                qs = environ['wsgi.input'].read(length)
+                q = parse_qs(qs)
+                
+                mime_type = 'application/json'
+                response = json.dumps(
+                    {
+                      'data': self._data_cache.list(),
+                      'mapfile': self._map_cache.list()
+                    }
+                )
 
         elif path_info.endswith('cache/'):
             # Cache control via request
@@ -270,16 +225,7 @@ class Server(object):
         elif not path_info.strip('/'):
             # Homepage
             mime_type = 'text/html'
-            root = '%s%s' % (environ['SCRIPT_NAME'], path_info.strip('/'))
-            response = '''<h2>TileLite</h2>
-            <div><p>Welcome, ready to accept a tile request in the format of %(root)s/zoom/x/y.png</p>
-            <p>url: <a href="%(root)s/1/0/0.png">%(root)s/1/0/0.png</a></p>
-            <p>js: var tiles = new OpenLayers.Layer.OSM("Mapnik", "http://%(http_host)s/${z}/${x}/${y}.png");</p>
-            <p>See TileLite settings: <a href="%(root)s/settings/">%(root)s/settings/</a>
-            | <a href="%(root)s/settings.json">%(root)s/settings.json</a></p>
-            <p> More info: <a href="http://bitbucket.org/springmeyer/tilelite/">
-            bitbucket.org/springmeyer/tilelite/</a></p></div>
-            ''' % {'root': root,'http_host':environ['HTTP_HOST']}
+            response = '''TileLive Running'''
         else:
             response = '<h1> Page Not found </h1>'
             response_status = "404 Not Found"
