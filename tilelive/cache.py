@@ -1,4 +1,12 @@
 import os, base64, urllib2, fnmatch, zipfile, mapnik, shutil
+
+"""
+
+Cache backend for TileLive. Includes a MapCache backend for mapfiles,
+and a DataCache backend for data files. Static cache of 10 each, plus 
+non-managed file cache of all files of each.
+
+"""
  
 def locate(pattern, root=os.curdir):
    """ find a file in a directory and its subdirectories """

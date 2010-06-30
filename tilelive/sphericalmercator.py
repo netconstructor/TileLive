@@ -50,14 +50,10 @@ class SphericalMercator(object):
     
     def xyz_to_envelope(self,x,y,zoom):
         """ Convert XYZ to mapnik.Envelope """
-        #e_id = '%s-%s-%s' % (x,y,zoom)
-        #if e_id in self.cache:
-        #    return self.cache[e_id]
         ll = (x * self.size,(y + 1) * self.size)
         ur = ((x + 1) * self.size, y * self.size)
         minx,miny = self.px_to_ll(ll,zoom)
         maxx,maxy = self.px_to_ll(ur,zoom)
         lonlat_bbox = mapnik.Envelope(minx,miny,maxx,maxy)
         env = mercator.forward(lonlat_bbox)
-        #self.cache[e_id] = env
         return env
