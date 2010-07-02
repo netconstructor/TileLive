@@ -18,6 +18,7 @@ class TLCache(object):
     """ base cache object for TileLite """
     def __init__(self, **kwargs):
         self.directory = kwargs.get('directory', '')
+        if not os.path.isdir(self.directory): os.mkdir(self.directory)
 
     def url2fs(self, url):
         """ encode a URL to be safe as a filename """
