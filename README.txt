@@ -29,7 +29,7 @@ For deployment, running a fast server like [Nginx](http://nginx.org/) in front o
 
 1. Download this repository as a zip or hg checkout.
 2. `python setup.py install`
-3. `tilelite.py`
+3. `liveserv.py`
 
 ## Integration
 
