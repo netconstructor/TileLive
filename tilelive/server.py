@@ -5,7 +5,13 @@ __copyright__ = 'Copyright 2009, Dane Springmeyer'
 __version__ = '0.1.3'
 __license__ = 'BSD'
 
-import os, sys, time, re, json
+import os, sys, time, re
+
+try:
+    import json
+except ImportError:
+    import simplejson as json 
+
 from urlparse import parse_qs
 
 from tilelive import cache, sphericalmercator
