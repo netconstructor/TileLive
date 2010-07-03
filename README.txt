@@ -18,7 +18,7 @@ From the client perspective, this branch of TileLite could be re-requesting data
 
 This software is unsupported on Windows
 
-* Python
+* Python 2.5 or 2.6
 * Mapnik (>= 0.6.0)
  * [Mac OSX Installers](http://dbsgeo.com/downloads/)
  * [Installation on Linux](http://trac.mapnik.org/wiki/LinuxInstallation)
@@ -27,7 +27,7 @@ For deployment, running a fast server like [Nginx](http://nginx.org/) in front o
 
 ## Installation and Running
 
-1. Download this repository as a zip or hg checkout.
+1. Download or git clone TileLive
 2. `python setup.py install`
 3. `liveserv.py`
 
@@ -41,13 +41,6 @@ This branch of TileSeed includes a very simple, restricted seeding script. The
 script has no external dependencies and uses four threads to make requests 
 faster when servers have multiple TileLite threads running as well. The script, 
 `tileseed.py` is also made to integrate with the StyleWriter module.
-
-## More info
-
-See the notes in the 'docs' folder and the sample 'tilelite.cfg' in the 'utils' folder.
-
-http://bitbucket.org/springmeyer/tilelite/
-
 
 ## References
 
