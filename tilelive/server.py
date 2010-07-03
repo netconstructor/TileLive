@@ -56,6 +56,11 @@ def is_image_request(path_info):
         return True
     return False
 
+def is_inspect_request(path_info):
+    if path_info.endswith('fields.json'):
+        return True
+    return False
+
 def match(attr,value):
     if isinstance(attr, bool) and str(value).lower() in ['on', 'yes', 'y', 'true']:
         return True
@@ -67,6 +72,9 @@ def match(attr,value):
         return value
     else:
         return None
+
+def get_type_name(t):
+    return t.__name__
     
 class Server(object):
     def __init__(self, config=None):
@@ -168,7 +176,21 @@ class Server(object):
         path_info = environ['PATH_INFO']
         query = parse_qs(environ['QUERY_STRING'])
 
-        if is_image_request(path_info):
+        if is_inspect_request(path_info):
+            data = path_info.split('/')[1]
+            ds = self._data_cache.get(data)
+            print dict(zip(map(get_type_name, ds.field_types()), ds.fields()))
+            response = json.dumps(
+                dict(
+                  zip(
+                    ds.fields(),
+                    map(get_type_name, ds.field_types())
+                    )
+                  )
+                )
+            mime_type = 'application/json'
+            
+        elif is_image_request(path_info):
 
             uri, self.format = path_info.split('.')
             zoom, x, y = map(int, uri.split('/')[-3:])

@@ -29,7 +29,7 @@ For deployment, running a fast server like [Nginx](http://nginx.org/) in front o
 
 1. Download or git clone TileLive
 2. `python setup.py install`
-3. `liveserv.py`
+3. Run `liveserv.py` in your Terminal
 
 ## Integration
 
