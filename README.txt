@@ -18,11 +18,11 @@ From the client perspective, this branch of TileLite could be re-requesting data
 
 ### Tiles
 
-    http://toomanypets.com/{base64-encoded data url}/{base64-encoded style url}/{z}/{x}/{y}.png
+    http://toomanypets.com/{base64-encoded mapfile url}/{z}/{x}/{y}.png
 
 ### Data fields
 
-    http://toomanypets.com/{base64-encoded data url}/fields.json
+    http://toomanypets.com/{base64-encoded mapfile url}/fields.json
 
 ### Cache Status
 
@@ -34,6 +34,7 @@ This software is unsupported on Windows
 
 * Python 2.5 or 2.6
 * Mapnik (>= 0.6.0)
+* [Cascadenik](http://code.google.com/p/mapnik-utils/wiki/Cascadenik)
  * [Mac OSX Installers](http://dbsgeo.com/downloads/)
  * [Installation on Linux](http://trac.mapnik.org/wiki/LinuxInstallation)
 
@@ -55,11 +56,3 @@ This branch of TileSeed includes a very simple, restricted seeding script. The
 script has no external dependencies and uses four threads to make requests 
 faster when servers have multiple TileLite threads running as well. The script, 
 `tileseed.py` is also made to integrate with the StyleWriter module.
-
-## References
-
-[1] If you need to WMS, TMS, seeding, or custom projection support TileCache is awesome (http://tilecache.org/)
-
-[2] If you need server queuing, threading, and expiry support use the powerful Mod_tile (http://wiki.openstreetmap.org/wiki/Mod_tile)
-
-[3] http://svn.openstreetmap.org/applications/rendering/mapnik/generate_tiles.py

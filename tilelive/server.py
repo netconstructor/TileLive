@@ -20,6 +20,8 @@ except ImportError:
 from tilelive import cache, sphericalmercator
 from sphericalmercator import SphericalMercator
 
+from cascadenik import compile
+
 try:
     import mapnik2 as mapnik
 except ImportError:
@@ -29,15 +31,9 @@ except ImportError:
 if not hasattr(mapnik,'Envelope'):
     mapnik.Envelope = mapnik.Box2d
 
-# http://spatialreference.org/ref/epsg/3785/proj4/
-#MERC_PROJ4 = "+proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +a=6378137 +b=6378137 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
-
 # http://spatialreference.org/ref/sr-org/6/
 MERC_PROJ4 = "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +no_defs +over"
 mercator = mapnik.Projection(MERC_PROJ4)
-
-#pattern = r'/(?P<version>\d{1,2}\.\d{1,3})/(?P<layername>[a-z]{1,64})/(?P<z>\d{1,10})/(?P<x>\d{1,10})/(?P<y>\d{1,10})\.(?P<extension>(?:png|jpg|gif))'
-#request_re = re.compile(pattern)
 
 def parse_config(cfg_file):
     from ConfigParser import SafeConfigParser
