@@ -76,7 +76,8 @@ class MapCache(TLCache):
     def list(self):
         """ return a list of cached URLs """
         return map(self.fs2url, 
-              [x for x in os.listdir(self.directory) if os.path.isfile(os.path.join(self.directory, x))]
+              [x for x in os.listdir(self.directory) if 
+                os.path.isfile(os.path.join(self.directory, x))]
           )
 
 class DataCache(TLCache):
@@ -121,29 +122,3 @@ class DataCache(TLCache):
         return map(self.fs2url, 
           [x for x in os.listdir(self.directory) if 
             os.path.isdir(os.path.join(self.directory, x))])
-
-    def dscache(self, url):
-        """ get a mapnik.Shapefile from a URL """
-        local_path = self.filecache(url)
-        return mapnik.Shapefile(file=self.shpzip(local_path))
-         
-    def shpzip(self, local_path):
-        """ given local path of zipfile, return location of shapefile """
-        dir = local_path + "_unzip"
-        if not os.path.isdir(dir):
-            self.unzip_file_into_dir(local_path, dir)
-        shapefiles = list(locate("*.shp", dir))
-        if len(shapefiles) > 0:
-            return shapefiles[0]
-            
-    def unzip_file_into_dir(self, file, dir):
-        """ unzip a file into a directory """
-        os.mkdir(dir, 0777)
-        zfobj = zipfile.ZipFile(file)
-        for name in zfobj.namelist():
-            if name.endswith('/'):
-                os.mkdir(os.path.join(dir, name))
-            else:
-                outfile = open(os.path.join(dir, name), 'wb')
-                outfile.write(zfobj.read(name))
-                outfile.close()

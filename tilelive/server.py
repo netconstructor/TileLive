@@ -5,7 +5,7 @@ __copyright__ = 'Copyright 2009, Dane Springmeyer'
 __version__ = '0.1.3'
 __license__ = 'BSD'
 
-import os, sys, time, re
+import os, sys, re
 
 try:
     import json
@@ -92,21 +92,17 @@ class Server(object):
         self.cache_force = False
         self.cache_path = '/tmp/tilelite' #tempfile.gettempdir()
         self.map_cache_path = 'mapfiles' #tempfile.gettempdir()
-        self.data_cache_path = 'data' #tempfile.gettempdir()
 
-        self.whitelist_data = ".*" 
         self.whitelist_mapfile= ".*" 
 
         if self._config:
             self.absorb_options(parse_config(self._config))
             self._key = parse_config(self._config)['_key']
 
-        self._whitelist_data_re = re.compile(self.whitelist_data)
         self._whitelist_mapfile_re = re.compile(self.whitelist_mapfile)
 
         self._merc = SphericalMercator(levels=self.max_zoom+1, size=self.size)
         self._map_cache = cache.MapCache(directory=self.map_cache_path)
-        self._data_cache = cache.DataCache(directory=self.data_cache_path)
         self._im = mapnik.Image(self.size, self.size)
                
     def msg(self,message):
@@ -144,24 +140,16 @@ class Server(object):
     def hit(self, env):
         return self.envelope.intersects(env)
 
-    def render_map(self, x, y, zoom, data, mapfile):
+    def render_map(self, x, y, zoom, mapfile):
         """ given the parameters for a tile, return a tile. requires
-        an object with _im, _merc, _map_cache, _data_cache defined """
-        start_time = time.time()
+        an object with _im, _merc, _map_cache, defined """
         envelope = self._merc.xyz_to_envelope(x, y, zoom)
         mapnik_map = self._map_cache.get(mapfile)
-        map_time = time.time()
-
-        for layer in mapnik_map.layers:
-            layer.datasource = self._data_cache.get(data)
-        data_time = time.time()
-
+        
         mapnik_map.zoom_to_box(envelope)
         mapnik_map.buffer_size = self.buffer_size
 
-        arender_time = time.time()
         mapnik.render(mapnik_map, self._im)
-        render_time = time.time()
 
         response = self._im.tostring(self.format)
         mime_type = 'image/%s' % self.format
@@ -177,6 +165,7 @@ class Server(object):
         query = parse_qs(environ['QUERY_STRING'])
 
         if is_inspect_request(path_info):
+            # TODO: currently broken code
             data = path_info.split('/')[1]
             ds = self._data_cache.get(data)
             print dict(zip(map(get_type_name, ds.field_types()), ds.fields()))
@@ -194,15 +183,14 @@ class Server(object):
 
             uri, self.format = path_info.split('.')
             zoom, x, y = map(int, uri.split('/')[-3:])
-            data, mapfile = uri.split('/')[-5:-3]
+            mapfile = uri.split('/')[-4]
             
             tile_dir = os.path.join(self.cache_path, 
-                data, 
                 mapfile, 
                 str(zoom),str(x), '%s.%s' % (str(y),self.format))
 
             if self.cache_force or not os.path.exists(tile_dir):
-                (mime_type, response) = self.render_map(x, y, zoom, data, mapfile)
+                (mime_type, response) = self.render_map(x, y, zoom, mapfile)
 
                 already_sent = True
                 self.msg('Zoom,X,Y: %s,%s,%s' % (zoom, x, y))
@@ -241,7 +229,7 @@ class Server(object):
                     data = query['data'][0] # data parameter is required
                     mapfile = query['mapfile'][0] if query.has_key('mapfile') else None
                     if data or mapfile:
-                        if self.clear_cache(data, mapfile):
+                        if self.clear_cache(mapfile):
                             response = json.dumps({'status': 'ok', 'msg': 'Cache cleared'})
                         else:
                             response = json.dumps({'status': 'ok', 'msg': 'Cache empty'})
