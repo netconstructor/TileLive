@@ -1,7 +1,6 @@
 import math, mapnik
 
-MERC_PROJ4 = "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +no_defs +over"
-mercator = mapnik.Projection(MERC_PROJ4)
+mercator = mapnik.Projection("+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +no_defs +over")
 
 class SphericalMercator(object):
     """
@@ -28,12 +27,13 @@ class SphericalMercator(object):
             size *= 2.0
 
     @classmethod
-    def minmax(a,b,c):
-        a = max(a,b)
-        a = min(a,c)
+    def minmax(a, b, c):
+        a = max(a, b)
+        a = min(a, c)
         return a
 
     def ll_to_px(self,px,zoom):
+        """ convert a latitude, longitude pair to a pixel """
         d = self.zc[zoom]
         e = round(d[0] + px[0] * self.Bc[zoom])
         f = self.minmax(math.sin(DEG_TO_RAD * px[1]),-0.9999,0.9999)
