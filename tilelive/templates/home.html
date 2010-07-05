@@ -1,0 +1,25 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+  <head>
+    <meta http-equiv='Content-Type' content='text/html; charset=UTF-8'/>
+    <title>TileLite</title>
+    <link rel='stylesheet' href='{{ static_url('css/tilelive.css') }}' type='text/css'/>
+    <script type='text/javascript' src='http://code.jquery.com/jquery-1.4.2.min.js'></script>
+    <script type='text/javascript' src='{{ static_url('js/test.js') }}'></script>
+    {% block head %}{% end %}
+  </head>
+  <body>
+    <div id='body'>
+      <div id='header'>
+        <h1>TileLite</h1>
+      </div>
+      <div id='content'>
+        <label>Map File URL</label>
+        <input type='text' name='mapfile_url' id='mapfile_url' size='100'/>
+        <input type='submit' id='js_test_mapfile' value='Test' />
+        <h3>Map</h3>
+        <img src='' id='test_map_tile' />
+      </div>
+    </div>
+  </body>
+</html>
