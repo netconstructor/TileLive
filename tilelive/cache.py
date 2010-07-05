@@ -1,4 +1,11 @@
-import os, base64, urllib2, fnmatch, zipfile, mapnik, shutil
+import os
+import base64
+import urllib2
+import fnmatch
+import zipfile
+import mapnik
+import shutil
+import cascadenik
 
 """
 
@@ -47,15 +54,15 @@ class MapCache(TLCache):
         self.mapnik_maps = {}
         self.size = kwargs.get('size', 10)
         self.tilesize = kwargs.get('tilesize', 256)
-
         if not os.path.isdir(self.directory): os.mkdir(self.directory)
-        
+
     def get(self, url):
         """ get a mapnik.Map object from a URL of a map.xml file, 
         regardless of cache status """
         if not self.mapnik_maps.has_key(url):
             self.mapnik_maps[url] = mapnik.Map(self.tilesize, self.tilesize)
-            mapnik.load_map(self.mapnik_maps[url], self.filecache(url))
+            open("%s_compiled.xml" % self.filecache(url), 'w').write(cascadenik.compile(self.filecache(url)))
+            mapnik.load_map(self.mapnik_maps[url], "%s_compiled.xml" % self.filecache(url))
         return self.mapnik_maps[url]
     
     def remove(self, url):
@@ -79,46 +86,3 @@ class MapCache(TLCache):
               [x for x in os.listdir(self.directory) if 
                 os.path.isfile(os.path.join(self.directory, x))]
           )
-
-class DataCache(TLCache):
-    """ datasource cache """
-    def __init__(self, **kwargs):
-        self.directory = kwargs['directory']
-        self.data_sources = {}
-        self._data_sources = []
-        self.size = kwargs.get('size', 10)
-
-        if not os.path.isdir(self.directory): os.mkdir(self.directory)
-        
-    def get(self, url):
-        """ get a datasource object, regardless of whether it is pre-cached """
-        if not self.data_sources.has_key(url):
-            if len(self._data_sources) == self.size:
-                del self.data_sources[self._data_sources.pop()]
-            self.data_sources[url] = self.dscache(url)
-            self._data_sources.insert(0, url)
-        return self.data_sources[url]
-
-    def clear(self, url):
-        """ remove a file, object and its associated tiles from the cache """
-        try:
-            # Remove the data files
-            shutil.rmtree(os.path.join(self.directory, 
-                url))
-
-            # remove the list entry for fifo
-            if url in self._data_sources:
-                self._data_sources.remove(url)
-
-            # remove the object
-            if self.data_sources.has_key(url):
-                del self.data_sources[url]
-
-        except Exception, e:
-            return False
-        
-    def list(self):
-        """ get a list of cached urls """
-        return map(self.fs2url, 
-          [x for x in os.listdir(self.directory) if 
-            os.path.isdir(os.path.join(self.directory, x))])
