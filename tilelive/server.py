@@ -5,16 +5,17 @@ __copyright__ = 'Copyright 2009, Dane Springmeyer'
 __version__ = '0.1.3'
 __license__ = 'BSD'
 
-import os, sys, re
+import os, sys, re, base64
 import tornado.httpserver
 import tornado.ioloop
 import tornado.web
-import tornado.escape
+from tornado.escape import json_encode
 from tornado.options import define, options
 from cgi import parse_qs
 import cache, sphericalmercator
 from sphericalmercator import SphericalMercator
 from cascadenik import compile
+from exceptions import KeyError
 
 try:
     import mapnik2 as mapnik
@@ -51,12 +52,14 @@ class InspectFieldHandler(tornado.web.RequestHandler):
     """ fields and field types of each datasource referenced by a mapfile """
     def get(self, mapfile):
         mapnik_map = self.application._map_cache.get(mapfile)
-        self.set_header('Content-Type', 'application/json')
+
         if self.request.arguments and self.request.arguments['jsoncallback']:
             jsonp =  "%s = " % self.request.arguments['jsoncallback'][0]
         else:
             jsonp = ""
-        self.write(jsonp + tornado.escape.json_encode(dict([
+
+        self.set_header('Content-Type', 'application/json')
+        self.write(jsonp + json_encode(dict([
             (layer.name,
               dict(zip(layer.datasource.fields(),
                 [field.__name__ for field in layer.datasource.field_types()]))
@@ -64,8 +67,29 @@ class InspectFieldHandler(tornado.web.RequestHandler):
 
 class InspectValueHandler(tornado.web.RequestHandler):
     """ sample data from each datasource referenced by a mapfile """
-    def get(self, mapfile):
-        pass
+    def get(self, mapfile, layer_name):
+        self.set_header('Content-Type', 'application/json')
+
+        mapnik_map = self.application._map_cache.get(mapfile)
+        try:
+            layer = filter(
+                lambda l: l.name == base64.urlsafe_b64decode(layer_name),
+                mapnik_map.layers)[0]
+        except IndexError:
+            self.write(json_encode({'error': 'Layer not found'}))
+
+        if self.request.arguments and self.request.arguments['jsoncallback']:
+            jsonp =  "%s = " % self.request.arguments['jsoncallback'][0]
+        else:
+            jsonp = ""
+
+        try:
+            self.write(jsonp + json_encode(
+                [dict(f.properties) for f in layer.datasource.all_features()]
+            ))
+        except Exception, e:
+            self.write(json_encode({'error': 'Exception: %s' % e}))
+            
 
 class Application(tornado.web.Application):
     """ routers and settings for TileLite """
@@ -74,7 +98,7 @@ class Application(tornado.web.Application):
             (r"/", MainHandler),
             (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(png|jpg|gif)", TileHandler),
             (r"/([^/]+)/fields.json", InspectFieldHandler),
-            (r"/([^/]+)/values.json", InspectValueHandler),
+            (r"/([^/]+)/([^/]+)/values.json", InspectValueHandler),
         ]
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), 'templates'),
