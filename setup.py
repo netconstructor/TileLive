@@ -6,7 +6,7 @@ from distutils.core import setup
 version = '0.1.3.2'
 app = 'tilelive'
 description = 'Lightweight WSGI tile-server, written in Python, using Mapnik rendering and designed to serve tiles in the OSM/Google scheme.'
-readme = file('README.markdown','rb').read()
+readme = file('README.txt','rb').read()
 
 setup(name='%s' % app,
       version = version,
