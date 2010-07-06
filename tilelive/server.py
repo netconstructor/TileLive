@@ -88,15 +88,24 @@ class InspectValueHandler(tornado.web.RequestHandler):
 
             start = 0 + int(self.get_argument('start', 0))
             end = 10 + int(self.get_argument('start', 0))
-                
-            json = json_encode(
-                {
-                    'min': min(field_values),
-                    'max': max(field_values),
-                    'values': sorted(list(set(field_values)))[start:end]
-                }
-            )
 
+            if isinstance(field_values[0], basestring):
+                json = json_encode(
+                    {
+                        'shortest': min(field_values, key=len),
+                        'longest': max(field_values, key=len),
+                        'values': sorted(list(set(field_values)))[start:end]
+                    }
+                )
+            else:
+                json = json_encode(
+                    {
+                        'min': min(field_values),
+                        'max': max(field_values),
+                        'values': sorted(list(set(field_values)))[start:end]
+                    }
+                )
+            
             if self.get_argument('jsoncallback', None):
                 json = "%s(%s)" % (self.get_argument('jsoncallback'), json)
                 self.set_header('Content-Type', 'text/javascript')
