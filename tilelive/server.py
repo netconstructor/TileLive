@@ -14,6 +14,7 @@ from tornado.options import define, options
 from cgi import parse_qs
 import cache, sphericalmercator
 from sphericalmercator import SphericalMercator
+from cascadenik import compile
 
 try:
     import mapnik2 as mapnik
@@ -46,33 +47,25 @@ class MainHandler(tornado.web.RequestHandler):
     def get(self):
         self.render('home.html')
 
-class IntrospectFieldHandler(tornado.web.RequestHandler):
+class InspectFieldHandler(tornado.web.RequestHandler):
     """ fields and field types of each datasource referenced by a mapfile """
     def get(self, mapfile):
-        ds = self._data_cache.get(data)
+        mapnik_map = self.application._map_cache.get(mapfile)
         self.set_header('Content-Type', 'application/json')
-        self.write(tornado.escape.json_encode(
-            dict(zip(
-                ds.fields(),
-                [field.__name__ for field in ds.field_types()])
-                )))
+        if self.request.arguments and self.request.arguments['jsoncallback']:
+            jsonp =  "%s = " % self.request.arguments['jsoncallback'][0]
+        else:
+            jsonp = ""
+        self.write(jsonp + tornado.escape.json_encode(dict([
+            (layer.name,
+              dict(zip(layer.datasource.fields(),
+                [field.__name__ for field in layer.datasource.field_types()]))
+            ) for layer in mapnik_map.layers])))
 
-class IntrospectValueHandler(tornado.web.RequestHandler):
+class InspectValueHandler(tornado.web.RequestHandler):
     """ sample data from each datasource referenced by a mapfile """
     def get(self, mapfile):
-        ds = self._data_cache.get(data)
-        query = mapnik.Query() # TODO: extent & double
-        featureset = ds.features(query)
-
-        for feature in featureset.features:
-            feature.properties
-
-        self.set_header('Content-Type', 'application/json')
-        self.write(tornado.escape.json_encode(
-            dict(zip(
-                ds.fields(),
-                map(get_type_name, ds.field_types())
-                ))))
+        pass
 
 class Application(tornado.web.Application):
     """ routers and settings for TileLite """
@@ -80,8 +73,8 @@ class Application(tornado.web.Application):
         handlers = [
             (r"/", MainHandler),
             (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(png|jpg|gif)", TileHandler),
-            (r"/([^/]+)/fields.jsonp", IntrospectFieldHandler),
-            (r"/([^/]+)/values.jsonp", IntrospectValueHandler),
+            (r"/([^/]+)/fields.json", InspectFieldHandler),
+            (r"/([^/]+)/values.json", InspectValueHandler),
         ]
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), 'templates'),
