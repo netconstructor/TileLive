@@ -92,8 +92,8 @@ class InspectValueHandler(tornado.web.RequestHandler):
             if isinstance(field_values[0], basestring):
                 json = json_encode(
                     {
-                        'shortest': min(field_values, key=len),
-                        'longest': max(field_values, key=len),
+                        'min': min(field_values, key=len),
+                        'max': max(field_values, key=len),
                         'count': len(field_values),
                         'values': sorted(list(set(field_values)))[start:end]
                     }
