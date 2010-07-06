@@ -53,17 +53,17 @@ class InspectFieldHandler(tornado.web.RequestHandler):
     def get(self, mapfile):
         mapnik_map = self.application._map_cache.get(mapfile)
 
-        if self.request.arguments and self.request.arguments['jsoncallback']:
-            jsonp =  "%s = " % self.request.arguments['jsoncallback'][0]
-        else:
-            jsonp = ""
-
-        self.set_header('Content-Type', 'application/json')
-        self.write(jsonp + json_encode(dict([
+        json = json_encode(dict([
             (layer.datasource.params().as_dict().get('id', layer.name),
               dict(zip(layer.datasource.fields(),
                 [field.__name__ for field in layer.datasource.field_types()]))
-            ) for layer in mapnik_map.layers])))
+            ) for layer in mapnik_map.layers]))
+
+        if self.request.arguments and self.request.arguments['jsoncallback']:
+            json = "%s(%s)" % (self.request.arguments['jsoncallback'][0], json)
+
+        self.set_header('Content-Type', 'application/json')
+        self.write(json)
 
 class InspectValueHandler(tornado.web.RequestHandler):
     """ sample data from each datasource referenced by a mapfile """
