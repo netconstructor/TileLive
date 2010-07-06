@@ -62,26 +62,23 @@ class InspectFieldHandler(tornado.web.RequestHandler):
         if self.request.arguments and self.request.arguments['jsoncallback']:
             json = "%s(%s)" % (self.request.arguments['jsoncallback'][0], json)
 
-        self.set_header('Content-Type', 'application/json')
+        self.set_header('Content-Type', 'text/javascript')
         self.write(json)
 
 class InspectValueHandler(tornado.web.RequestHandler):
     """ sample data from each datasource referenced by a mapfile """
-    def get(self, mapfile, layer_name):
-        self.set_header('Content-Type', 'application/json')
+    def get(self, mapfile, layer_id):
+        self.set_header('Content-Type', 'text/javascript')
 
         mapnik_map = self.application._map_cache.get(mapfile)
         try:
             layer = filter(
-                lambda l: l.name == base64.urlsafe_b64decode(layer_name),
+                lambda l:
+                  l.datasource.params().as_dict().get('id', False) == 
+                  base64.urlsafe_b64decode(layer_id),
                 mapnik_map.layers)[0]
         except IndexError:
             self.write(json_encode({'error': 'Layer not found'}))
-
-        if self.request.arguments and self.request.arguments['jsoncallback']:
-            jsonp =  "%s = " % self.request.arguments['jsoncallback'][0]
-        else:
-            jsonp = ""
 
         try:
             self.write(jsonp + json_encode(
