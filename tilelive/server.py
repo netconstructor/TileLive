@@ -50,8 +50,8 @@ class MainHandler(tornado.web.RequestHandler):
 
 class InspectFieldHandler(tornado.web.RequestHandler):
     """ fields and field types of each datasource referenced by a mapfile """
-    def get(self, mapfile):
-        mapnik_map = self.application._map_cache.get(mapfile)
+    def get(self, mapfile_64):
+        mapnik_map = self.application._map_cache.get(mapfile_64)
 
         json = json_encode(dict([
             (layer.datasource.params().as_dict().get('id', layer.name),
@@ -59,31 +59,54 @@ class InspectFieldHandler(tornado.web.RequestHandler):
                 [field.__name__ for field in layer.datasource.field_types()]))
             ) for layer in mapnik_map.layers]))
 
-        if self.request.arguments and self.request.arguments['jsoncallback']:
-            json = "%s(%s)" % (self.request.arguments['jsoncallback'][0], json)
+        if self.get_argument('jsoncallback', None):
+            json = "%s(%s)" % (self.get_argument('jsoncallback'), json)
+            self.set_header('Content-Type', 'text/javascript')
+        else:
+            self.set_header('Content-Type', 'application/json')
 
-        self.set_header('Content-Type', 'text/javascript')
         self.write(json)
 
 class InspectValueHandler(tornado.web.RequestHandler):
     """ sample data from each datasource referenced by a mapfile """
-    def get(self, mapfile, layer_id):
+    def get(self, mapfile, layer_id_64, field_name_64):
         self.set_header('Content-Type', 'text/javascript')
 
+        layer_id   = base64.urlsafe_b64decode(layer_id_64)
+        field_name = base64.urlsafe_b64decode(field_name_64)
         mapnik_map = self.application._map_cache.get(mapfile)
+
         try:
             layer = filter(
                 lambda l:
-                  l.datasource.params().as_dict().get('id', False) == 
-                  base64.urlsafe_b64decode(layer_id),
+                    l.datasource.params().as_dict().get('id', False) == 
+                    layer_id,
                 mapnik_map.layers)[0]
+
+            field_values = [dict(f.properties).get(field_name)
+                for f in layer.datasource.all_features()]
+
+            start = 0 + int(self.get_argument('start', 0))
+            end = 10 + int(self.get_argument('start', 0))
+                
+            json = json_encode(
+                {
+                    'min': min(field_values),
+                    'max': max(field_values),
+                    'values': sorted(list(set(field_values)))[start:end]
+                }
+            )
+
+            if self.get_argument('jsoncallback', None):
+                json = "%s(%s)" % (self.get_argument('jsoncallback'), json)
+                self.set_header('Content-Type', 'text/javascript')
+            else:
+                self.set_header('Content-Type', 'application/json')
+                
+            self.write(json)
+
         except IndexError:
             self.write(json_encode({'error': 'Layer not found'}))
-
-        try:
-            self.write(jsonp + json_encode(
-                [dict(f.properties) for f in layer.datasource.all_features()]
-            ))
         except Exception, e:
             self.write(json_encode({'error': 'Exception: %s' % e}))
             
@@ -95,7 +118,7 @@ class Application(tornado.web.Application):
             (r"/", MainHandler),
             (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(png|jpg|gif)", TileHandler),
             (r"/([^/]+)/fields.json", InspectFieldHandler),
-            (r"/([^/]+)/([^/]+)/values.json", InspectValueHandler),
+            (r"/([^/]+)/([^/]+)/([^/]+)/values.json", InspectValueHandler),
         ]
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), 'templates'),
