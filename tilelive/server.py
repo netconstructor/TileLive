@@ -60,7 +60,7 @@ class InspectFieldHandler(tornado.web.RequestHandler):
 
         self.set_header('Content-Type', 'application/json')
         self.write(jsonp + json_encode(dict([
-            (layer.name,
+            (layer.datasource.params().as_dict().get('id', layer.name),
               dict(zip(layer.datasource.fields(),
                 [field.__name__ for field in layer.datasource.field_types()]))
             ) for layer in mapnik_map.layers])))

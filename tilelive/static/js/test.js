@@ -51,8 +51,9 @@ $(document).ready(
   function() {
     $('#js_test_mapfile').click(
       function() {
+        var port = window.location.port;
         $('#test_map_tile').attr('src', 
-          'http://localhost:8000/tile/' + 
+          'http://localhost:' + port + '/tile/' + 
           Base64.urlsafe_encode($('#mapfile_url').val()) + '/0/0/0.png'
         );
       }
