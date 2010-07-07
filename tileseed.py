@@ -60,7 +60,7 @@ class GoogleProjection:
          return (f,h)
 
 class RenderThread:
-    def __init__(self, data, mapfile, url, q, printLock, maxZoom):
+    def __init__(self, mapfile, url, q, printLock, maxZoom):
         self.q = q
         self.printLock = printLock
         # Load style XML
@@ -92,15 +92,15 @@ class RenderThread:
             self.timed_transfer(tile_uri)
             self.q.task_done()
 
-def render_tiles(bbox, minZoom,maxZoom, data, mapfile, url):
-    print "render_tiles(",bbox, data, mapfile, url, ")"
+def render_tiles(bbox, minZoom, maxZoom, mapfile, url):
+    print "render_tiles(",bbox, mapfile, url, ")"
 
     # Launch rendering threads
     queue = Queue(32)
     printLock = threading.Lock()
     renderers = {}
     for i in range(NUM_THREADS):
-        renderer = RenderThread(data, mapfile, url, queue, printLock, maxZoom)
+        renderer = RenderThread(mapfile, url, queue, printLock, maxZoom)
         render_thread = threading.Thread(target=renderer.loop)
         render_thread.start()
         #print "Started render thread %s" % render_thread.getName()
@@ -127,7 +127,7 @@ def render_tiles(bbox, minZoom,maxZoom, data, mapfile, url):
                     continue
                 tile_uri = "%s/%s/%s/%d/%d/%d.png" % (
                         url.rstrip('/'),
-                        urlsafe_b64encode(options.data),
+                        'tile',
                         urlsafe_b64encode(options.mapfile),
                         z,
                         x,
@@ -148,11 +148,8 @@ if __name__ == "__main__":
     """ run as a command-line tool """
 
     parser = OptionParser(usage="""%prog [options] [zoom...]""", version='0.1.3.1')
-    parser.add_option('-d', '--data', dest='data',
-                  help='Data URL')
-
-    parser.add_option('-m', '--mapfile', dest='mapfile',
-                      help='Mapfile URL')
+    parser.add_option('-m', '--mml', dest='mapfile',
+                      help='MML URL')
 
     parser.add_option('-u', '--url', dest='url',
                       help='Map Server Base URL')
@@ -166,8 +163,8 @@ if __name__ == "__main__":
 
     options, zooms = parser.parse_args()
 
-    if options.data and options.url and options.extension:
+    if options.url and options.extension:
         bbox = (-180.0,-90.0, 180.0,90.0)
-        render_tiles(bbox, int(zooms[0]), int(zooms[1]), options.data, options.mapfile, options.url)
+        render_tiles(bbox, int(zooms[0]), int(zooms[1]), options.mapfile, options.url)
     else:
         parser.error("required arguments missing")
