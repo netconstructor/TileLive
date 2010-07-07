@@ -61,7 +61,7 @@ class MapCache(TLCache):
         regardless of cache status """
         if not self.mapnik_maps.has_key(url):
             self.mapnik_maps[url] = mapnik.Map(self.tilesize, self.tilesize)
-            open("%s_compiled.xml" % self.filecache(url), 'w').write(cascadenik.compile(self.filecache(url)))
+            open("%s_compiled.xml" % self.filecache(url), 'w').write(cascadenik.compile(self.filecache(url), urlcache=True))
             mapnik.load_map(self.mapnik_maps[url], "%s_compiled.xml" % self.filecache(url))
         return self.mapnik_maps[url]
     

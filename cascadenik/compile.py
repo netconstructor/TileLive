@@ -1029,6 +1029,7 @@ def localize_shapefile(src, shapefile, dir=None, move_local_files=False, **kwarg
     """
     (scheme, netloc, path, params, query, fragment) = urlparse.urlparse(shapefile)
 
+
     if move_local_files:
         sys.stderr.write('WARNING: moving local shapefiles not yet supported\n')
 
@@ -1044,8 +1045,8 @@ def localize_shapefile(src, shapefile, dir=None, move_local_files=False, **kwarg
 
     if kwargs.get('urlcache', None) and os.path.isdir(os.path.join(tempfile.gettempdir(), 
         base64.urlsafe_b64encode(shapefile))):
-        base_dir = os.path.join(tempfile.gettempdir(), base64.urlsafe_b64encode(shapefile))
-        for root, dirs, files in os.walk(base_dir):
+        b_dir = os.path.join(tempfile.gettempdir(), base64.urlsafe_b64encode(shapefile))
+        for root, dirs, files in os.walk(b_dir):
             for file in files:
                 if os.path.splitext(file)[1] == '.shp':
                     return os.path.join(root, file)
@@ -1091,6 +1092,7 @@ def compile(src,**kwargs):
     """
     
     dir = kwargs.get('dir',None)
+    urlcache = kwargs.get('urlcache',False)
     move_local_files = kwargs.get('move_local_files',False)
     
     if os.path.exists(src): # local file
@@ -1118,7 +1120,7 @@ def compile(src,**kwargs):
         for parameter in layer.find('Datasource').findall('Parameter'):
             if parameter.get('name', None) == 'file':
                 # fetch a remote zipped shapefile or read a local one
-                parameter.text = localize_shapefile(src, parameter.text, dir, move_local_files, urlcache=True)
+                parameter.text = localize_shapefile(src, parameter.text, dir, move_local_files, urlcache=urlcache)
 
             elif parameter.get('name', None) == 'table':
                 # remove line breaks from possible SQL

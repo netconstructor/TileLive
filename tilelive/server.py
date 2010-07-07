@@ -94,7 +94,7 @@ class InspectValueHandler(tornado.web.RequestHandler):
                     {
                         'min': min(field_values, key=len),
                         'max': max(field_values, key=len),
-                        'count': len(field_values),
+                        'count': len(set(field_values)),
                         'field': field_name,
                         'values': sorted(list(set(field_values)))[start:end]
                     }
@@ -104,7 +104,7 @@ class InspectValueHandler(tornado.web.RequestHandler):
                     {
                         'min': min(field_values),
                         'max': max(field_values),
-                        'count': len(field_values),
+                        'count': len(set(field_values)),
                         'field': field_name,
                         'values': sorted(list(set(field_values)))[start:end]
                     }
