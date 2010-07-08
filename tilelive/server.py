@@ -31,6 +31,9 @@ define('tilesize', default=256, help='the size of generated tiles', type=int)
 
 class TileLive:
     def layer_by_id(self, mapnik_map, layer_id):
+        """
+        find a layer in a map, given a map id that a user puts as a param
+        """
         try:
             layer = filter(
                 lambda l:
@@ -49,8 +52,6 @@ class TileLive:
         else:
             self.set_header('Content-Type', 'application/json')
         self.write(json)
-
-
 
 class TileHandler(tornado.web.RequestHandler):
     """ handle all tile requests """
@@ -78,10 +79,19 @@ class InspectFieldHandler(tornado.web.RequestHandler, TileLive):
 
         json = json_encode(dict([
             (layer.datasource.params().as_dict().get('id', layer.name),
-              dict(zip(layer.datasource.fields(),
-                [field.__name__ for field in layer.datasource.field_types()]))
+              {
+                'fields': dict(zip(layer.datasource.fields(),
+                [field.__name__ for field in layer.datasource.field_types()])),
+                'extent': self.layer_envelope(layer)
+              }
             ) for layer in mapnik_map.layers]))
         self.jsonp(json, self.get_argument('jsoncallback', None))
+
+    def layer_envelope(self, layer):
+        """ given a layer object, return an envelope of it in merc """
+        e = layer.envelope()
+        return [e.minx, e.miny, e.maxx, e.maxy]
+
 
 class InspectLayerHandler(tornado.web.RequestHandler, TileLive):
     """ fields and field types of each datasource referenced by a mapfile """
@@ -101,7 +111,9 @@ class InspectLayerHandler(tornado.web.RequestHandler, TileLive):
         })
 
         self.jsonp(json, self.get_argument('jsoncallback', None))
+
     def shapefile_projection(self, shapefile_path):
+        """ given a path to a shapefile, get the proj4 string """
         shapefile = ogr.Open(shapefile_path)
         return shapefile.GetLayer(0).GetSpatialRef().ExportToProj4()
 
@@ -158,6 +170,7 @@ class Application(tornado.web.Application):
         )
         tornado.web.Application.__init__(self, handlers, **settings)
         self._merc = SphericalMercator(levels=23, size=256)
+        self._mercator = mapnik.Projection("+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +no_defs +over")
         self._im = mapnik.Image(options.tilesize, options.tilesize)
         self._map_cache = cache.MapCache(directory='mapfiles')
 
