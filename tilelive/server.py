@@ -67,6 +67,46 @@ class InspectFieldHandler(tornado.web.RequestHandler):
 
         self.write(json)
 
+class InspectLayerHandler(tornado.web.RequestHandler):
+    """ fields and field types of each datasource referenced by a mapfile """
+    def get(self, mapfile_64, layer_id_64):
+        mapnik_map = self.application._map_cache.get(mapfile_64)
+        layer_id   = base64.urlsafe_b64decode(layer_id_64)
+
+        layer = filter(
+            lambda l:
+                l.datasource.params().as_dict().get('id', False) == 
+                layer_id,
+            mapnik_map.layers)[0]
+        shapefile_path = layer.datasource.params().as_dict().get('file', None)
+
+        if not shapefile_path:
+            return false
+
+        try:
+            from osgeo import ogr
+        except ImportException:
+            self.write(json_encode({'error': 'OGR Required'}))
+
+        shapefile = ogr.Open(shapefile_path)
+        l = shapefile.GetLayer(0)
+        spatial_ref = l.GetSpatialRef()
+
+        json = json_encode(
+          {
+            'layer_id': layer_id,
+            'srs': str(spatial_ref)
+          }
+        )
+
+        if self.get_argument('jsoncallback', None):
+            json = "%s(%s)" % (self.get_argument('jsoncallback'), json)
+            self.set_header('Content-Type', 'text/javascript')
+        else:
+            self.set_header('Content-Type', 'application/json')
+
+        self.write(json)
+
 class InspectValueHandler(tornado.web.RequestHandler):
     """ sample data from each datasource referenced by a mapfile """
     def get(self, mapfile, layer_id_64, field_name_64):
@@ -131,6 +171,7 @@ class Application(tornado.web.Application):
             (r"/", MainHandler),
             (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(png|jpg|gif)", TileHandler),
             (r"/([^/]+)/fields.json", InspectFieldHandler),
+            (r"/([^/]+)/([^/]+)/layer.json", InspectLayerHandler),
             (r"/([^/]+)/([^/]+)/([^/]+)/values.json", InspectValueHandler),
         ]
         settings = dict(
