@@ -97,15 +97,13 @@ class InspectLayerHandler(tornado.web.RequestHandler, TileLive):
 
         json = json_encode({
           'layer_id': layer_id,
-          'srs': shapefile_projection(shapefile_path)
+          'srs': self.shapefile_projection(shapefile_path)
         })
 
         self.jsonp(json, self.get_argument('jsoncallback', None))
-    def shapefile_projection(shapefile_path):
+    def shapefile_projection(self, shapefile_path):
         shapefile = ogr.Open(shapefile_path)
-        spatial_ref = "%s:%s" % \
-          (shapefile.GetLayer(0).GetSpatialRef().GetAuthorityName('GEOGCS'),
-          shapefile.GetLayer(0).GetSpatialRef().GetAuthorityCode('GEOGCS'))
+        return shapefile.GetLayer(0).GetSpatialRef().ExportToProj4()
 
 class InspectValueHandler(tornado.web.RequestHandler, TileLive):
     """ sample data from each datasource referenced by a mapfile """
