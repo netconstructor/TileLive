@@ -5,17 +5,16 @@ __copyright__ = 'Copyright 2009, Dane Springmeyer'
 __version__ = '0.1.3'
 __license__ = 'BSD'
 
-import os, sys, re, base64
+import os, sys, base64
 import tornado.httpserver
 import tornado.ioloop
 import tornado.web
 from tornado.escape import json_encode
 from tornado.options import define, options
-from cgi import parse_qs
 import cache, sphericalmercator
 from sphericalmercator import SphericalMercator
-from cascadenik import compile
 from exceptions import KeyError
+from osgeo import ogr
 
 try:
     import mapnik2 as mapnik
@@ -28,6 +27,30 @@ if not hasattr(mapnik,'Envelope'):
 define('port', default=8888, help='run on the given port', type=int)
 define('buffer_size', default=128, help='mapnik buffer size', type=int)
 define('tilesize', default=256, help='the size of generated tiles', type=int)
+
+
+class TileLive:
+    def layer_by_id(self, mapnik_map, layer_id):
+        try:
+            layer = filter(
+                lambda l:
+                    l.datasource.params().as_dict().get('id', False) == 
+                    layer_id,
+                mapnik_map.layers)[0]
+            return layer
+        except KeyError:
+            raise Exception('Layer not found')
+
+    def jsonp(self, json, jsoncallback):
+        """ serve a page with an optional jsonp callback """
+        if jsoncallback:
+            json = "%s(%s)" % (jsoncallback, json)
+            self.set_header('Content-Type', 'text/javascript')
+        else:
+            self.set_header('Content-Type', 'application/json')
+        self.write(json)
+
+
 
 class TileHandler(tornado.web.RequestHandler):
     """ handle all tile requests """
@@ -48,7 +71,7 @@ class MainHandler(tornado.web.RequestHandler):
     def get(self):
         self.render('home.html')
 
-class InspectFieldHandler(tornado.web.RequestHandler):
+class InspectFieldHandler(tornado.web.RequestHandler, TileLive):
     """ fields and field types of each datasource referenced by a mapfile """
     def get(self, mapfile_64):
         mapnik_map = self.application._map_cache.get(mapfile_64)
@@ -58,56 +81,33 @@ class InspectFieldHandler(tornado.web.RequestHandler):
               dict(zip(layer.datasource.fields(),
                 [field.__name__ for field in layer.datasource.field_types()]))
             ) for layer in mapnik_map.layers]))
+        self.jsonp(json, self.get_argument('jsoncallback', None))
 
-        if self.get_argument('jsoncallback', None):
-            json = "%s(%s)" % (self.get_argument('jsoncallback'), json)
-            self.set_header('Content-Type', 'text/javascript')
-        else:
-            self.set_header('Content-Type', 'application/json')
-
-        self.write(json)
-
-class InspectLayerHandler(tornado.web.RequestHandler):
+class InspectLayerHandler(tornado.web.RequestHandler, TileLive):
     """ fields and field types of each datasource referenced by a mapfile """
     def get(self, mapfile_64, layer_id_64):
         mapnik_map = self.application._map_cache.get(mapfile_64)
         layer_id   = base64.urlsafe_b64decode(layer_id_64)
 
-        layer = filter(
-            lambda l:
-                l.datasource.params().as_dict().get('id', False) == 
-                layer_id,
-            mapnik_map.layers)[0]
+        layer = self.layer_by_id(mapnik_map, layer_id)
         shapefile_path = layer.datasource.params().as_dict().get('file', None)
 
         if not shapefile_path:
             return false
 
-        try:
-            from osgeo import ogr
-        except ImportException:
-            self.write(json_encode({'error': 'OGR Required'}))
+        json = json_encode({
+          'layer_id': layer_id,
+          'srs': shapefile_projection(shapefile_path)
+        })
 
+        self.jsonp(json, self.get_argument('jsoncallback', None))
+    def shapefile_projection(shapefile_path):
         shapefile = ogr.Open(shapefile_path)
-        l = shapefile.GetLayer(0)
-        spatial_ref = l.GetSpatialRef()
+        spatial_ref = "%s:%s" % \
+          (shapefile.GetLayer(0).GetSpatialRef().GetAuthorityName('GEOGCS'),
+          shapefile.GetLayer(0).GetSpatialRef().GetAuthorityCode('GEOGCS'))
 
-        json = json_encode(
-          {
-            'layer_id': layer_id,
-            'srs': str(spatial_ref)
-          }
-        )
-
-        if self.get_argument('jsoncallback', None):
-            json = "%s(%s)" % (self.get_argument('jsoncallback'), json)
-            self.set_header('Content-Type', 'text/javascript')
-        else:
-            self.set_header('Content-Type', 'application/json')
-
-        self.write(json)
-
-class InspectValueHandler(tornado.web.RequestHandler):
+class InspectValueHandler(tornado.web.RequestHandler, TileLive):
     """ sample data from each datasource referenced by a mapfile """
     def get(self, mapfile, layer_id_64, field_name_64):
         self.set_header('Content-Type', 'text/javascript')
@@ -117,46 +117,25 @@ class InspectValueHandler(tornado.web.RequestHandler):
         mapnik_map = self.application._map_cache.get(mapfile)
 
         try:
-            layer = filter(
-                lambda l:
-                    l.datasource.params().as_dict().get('id', False) == 
-                    layer_id,
-                mapnik_map.layers)[0]
+            layer = self.layer_by_id(mapnik_map, layer_id)
 
             field_values = [dict(f.properties).get(field_name)
                 for f in layer.datasource.all_features()]
 
             start = 0 + int(self.get_argument('start', 0))
-            end = 10 + int(self.get_argument('start', 0))
+            end = int(self.get_argument('limit', 30)) + \
+                int(self.get_argument('start', 0))
 
-            if isinstance(field_values[0], basestring):
-                json = json_encode(
-                    {
-                        'min': min(field_values, key=len),
-                        'max': max(field_values, key=len),
-                        'count': len(set(field_values)),
-                        'field': field_name,
-                        'values': sorted(list(set(field_values)))[start:end]
-                    }
-                )
-            else:
-                json = json_encode(
-                    {
-                        'min': min(field_values),
-                        'max': max(field_values),
-                        'count': len(set(field_values)),
-                        'field': field_name,
-                        'values': sorted(list(set(field_values)))[start:end]
-                    }
-                )
-            
-            if self.get_argument('jsoncallback', None):
-                json = "%s(%s)" % (self.get_argument('jsoncallback'), json)
-                self.set_header('Content-Type', 'text/javascript')
-            else:
-                self.set_header('Content-Type', 'application/json')
-                
-            self.write(json)
+            stringlen = {'key': len} if isinstance(field_values[0], basestring) else {}
+
+            json = json_encode({
+                'min': min(field_values, **stringlen),
+                'max': max(field_values, **stringlen),
+                'count': len(set(field_values)),
+                'field': field_name,
+                'values': sorted(list(set(field_values)))[start:end]
+            })
+            self.jsonp(json, self.get_argument('jsoncallback', None))
 
         except IndexError:
             self.write(json_encode({'error': 'Layer not found'}))
@@ -172,6 +151,7 @@ class Application(tornado.web.Application):
             (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(png|jpg|gif)", TileHandler),
             (r"/([^/]+)/fields.json", InspectFieldHandler),
             (r"/([^/]+)/([^/]+)/layer.json", InspectLayerHandler),
+            # (r"/([^/]+)/([^/]+)/values.json", InspectLayerValuesHandler),
             (r"/([^/]+)/([^/]+)/([^/]+)/values.json", InspectValueHandler),
         ]
         settings = dict(
@@ -185,7 +165,6 @@ class Application(tornado.web.Application):
 
 def main():
     tornado.options.parse_command_line()
-
     http_server = tornado.httpserver.HTTPServer(Application())
     http_server.listen(options.port)
     tornado.ioloop.IOLoop.instance().start()
