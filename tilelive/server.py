@@ -11,7 +11,7 @@ import tornado.ioloop
 import tornado.web
 from tornado.escape import json_encode
 from tornado.options import define, options
-import cache, sphericalmercator
+import cache, sphericalmercator, cached_compile
 from sphericalmercator import SphericalMercator
 from exceptions import KeyError
 from osgeo import ogr
@@ -92,6 +92,28 @@ class InspectFieldHandler(tornado.web.RequestHandler, TileLive):
         e = layer.envelope()
         return [e.minx, e.miny, e.maxx, e.maxy]
 
+class InspectDataHandler(tornado.web.RequestHandler, TileLive):
+    """ fields and field types of each datasource referenced by a mapfile """
+    def get(self, data_url_64):
+        data_url = base64.urlsafe_b64decode(data_url_64)
+
+        shapefile_path = cached_compile.localize_shapefile('', data_url)
+
+        if not shapefile_path:
+            return false
+
+        json = json_encode({
+          'layer_id': layer_id,
+          'srs': self.shapefile_projection(shapefile_path)
+        })
+
+        self.jsonp(json, self.get_argument('jsoncallback', None))
+
+    def shapefile_projection(self, shapefile_path):
+        """ given a path to a shapefile, get the proj4 string """
+
+        shapefile = ogr.Open(shapefile_path)
+        return shapefile.GetLayer(0).GetSpatialRef().ExportToProj4()
 
 class InspectLayerHandler(tornado.web.RequestHandler, TileLive):
     """ fields and field types of each datasource referenced by a mapfile """
@@ -160,6 +182,7 @@ class Application(tornado.web.Application):
             (r"/", MainHandler),
             (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(png|jpg|gif)", TileHandler),
             (r"/([^/]+)/fields.json", InspectFieldHandler),
+            (r"/([^/]+)/data.json", InspectDataHandler),
             (r"/([^/]+)/([^/]+)/layer.json", InspectLayerHandler),
             # (r"/([^/]+)/([^/]+)/values.json", InspectLayerValuesHandler),
             (r"/([^/]+)/([^/]+)/([^/]+)/values.json", InspectValueHandler),
