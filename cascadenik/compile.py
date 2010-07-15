@@ -1049,7 +1049,7 @@ def localize_shapefile(src, shapefile, dir=None, move_local_files=False, **kwarg
         for root, dirs, files in os.walk(b_dir):
             for file in files:
                 if os.path.splitext(file)[1] == '.shp':
-                    return os.path.join(root, file)
+                    return os.path.join(root, file[:-4])
 
     # assumed to be a remote zip archive with .shp, .shx, and .dbf files
     zip_data = urllib.urlopen(shapefile).read()

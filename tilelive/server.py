@@ -96,15 +96,14 @@ class InspectDataHandler(tornado.web.RequestHandler, TileLive):
     """ fields and field types of each datasource referenced by a mapfile """
     def get(self, data_url_64):
         data_url = base64.urlsafe_b64decode(data_url_64)
-
-        shapefile_path = cached_compile.localize_shapefile('', data_url)
+        shapefile_path = cached_compile.localize_shapefile('', data_url, urlcache = True)
 
         if not shapefile_path:
             return false
 
         json = json_encode({
-          'layer_id': layer_id,
-          'srs': self.shapefile_projection(shapefile_path)
+          'data_url': data_url,
+          'srs': self.shapefile_projection(shapefile_path + '.shp')
         })
 
         self.jsonp(json, self.get_argument('jsoncallback', None))
