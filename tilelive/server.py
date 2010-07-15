@@ -112,7 +112,11 @@ class InspectDataHandler(tornado.web.RequestHandler, TileLive):
         """ given a path to a shapefile, get the proj4 string """
 
         shapefile = ogr.Open(shapefile_path)
-        return shapefile.GetLayer(0).GetSpatialRef().ExportToProj4()
+        if shapefile is not None:
+            layer = shapefile.GetLayer(0).GetSpatialRef()
+            if layer is not None:
+                return layer.ExportToProj4()
+        return False
 
 class InspectLayerHandler(tornado.web.RequestHandler, TileLive):
     """ fields and field types of each datasource referenced by a mapfile """
@@ -135,8 +139,13 @@ class InspectLayerHandler(tornado.web.RequestHandler, TileLive):
 
     def shapefile_projection(self, shapefile_path):
         """ given a path to a shapefile, get the proj4 string """
+
         shapefile = ogr.Open(shapefile_path)
-        return shapefile.GetLayer(0).GetSpatialRef().ExportToProj4()
+        if shapefile is not None:
+            layer = shapefile.GetLayer(0).GetSpatialRef()
+            if layer is not None:
+                return layer.ExportToProj4()
+        return False
 
 class InspectValueHandler(tornado.web.RequestHandler, TileLive):
     """ sample data from each datasource referenced by a mapfile """
