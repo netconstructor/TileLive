@@ -5,7 +5,8 @@ __copyright__ = 'Copyright 2009, Dane Springmeyer'
 __version__ = '0.1.3'
 __license__ = 'BSD'
 
-import os, sys, base64
+import os, sys, base64, tempfile
+import tornado.httpclient
 import tornado.httpserver
 import tornado.ioloop
 import tornado.web
@@ -27,7 +28,6 @@ if not hasattr(mapnik,'Envelope'):
 define('port', default=8888, help='run on the given port', type=int)
 define('buffer_size', default=128, help='mapnik buffer size', type=int)
 define('tilesize', default=256, help='the size of generated tiles', type=int)
-
 
 class TileLive:
     def layer_by_id(self, mapnik_map, layer_id):
@@ -55,17 +55,24 @@ class TileLive:
 
 class TileHandler(tornado.web.RequestHandler):
     """ handle all tile requests """
+    @tornado.web.asynchronous
     def get(self, mapfile, z, x, y, filetype):
         z, x, y = map(int, [z, x, y])
+        self.z = z
+        self.x = x
+        self.y = y
+        self.filetype = filetype
+        self.application._map_cache.get(mapfile, self.async_callback(self.async_get))
 
-        envelope =   self.application._merc.xyz_to_envelope(x, y, z)
-        mapnik_map = self.application._map_cache.get(mapfile)
+    def async_get(self, mapnik_map):
+        envelope = self.application._merc.xyz_to_envelope(self.x, self.y, self.z)
         mapnik_map.zoom_to_box(envelope)
         mapnik_map.buffer_size = options.buffer_size
         mapnik.render(mapnik_map, self.application._im)
-
         self.set_header('Content-Type', 'image/png')
         self.write(self.application._im.tostring('png'))
+        self.finish()
+
 
 class MainHandler(tornado.web.RequestHandler):
     """ home page, of little consequence """
@@ -74,9 +81,11 @@ class MainHandler(tornado.web.RequestHandler):
 
 class InspectFieldHandler(tornado.web.RequestHandler, TileLive):
     """ fields and field types of each datasource referenced by a mapfile """
+    @tornado.web.asynchronous
     def get(self, mapfile_64):
-        mapnik_map = self.application._map_cache.get(mapfile_64)
+        self.application._map_cache.get(mapfile_64, self.async_callback(self.async_get))
 
+    def async_get(self, mapnik_map):
         json = json_encode(dict([
             (layer.datasource.params().as_dict().get('id', layer.name),
               {
@@ -86,6 +95,7 @@ class InspectFieldHandler(tornado.web.RequestHandler, TileLive):
               }
             ) for layer in mapnik_map.layers]))
         self.jsonp(json, self.get_argument('jsoncallback', None))
+        self.finish()
 
     def layer_envelope(self, layer):
         """ given a layer object, return an envelope of it in merc """
@@ -94,19 +104,25 @@ class InspectFieldHandler(tornado.web.RequestHandler, TileLive):
 
 class InspectDataHandler(tornado.web.RequestHandler, TileLive):
     """ fields and field types of each datasource referenced by a mapfile """
+    @tornado.web.asynchronous
     def get(self, data_url_64):
-        data_url = base64.urlsafe_b64decode(data_url_64)
-        shapefile_path = cached_compile.localize_shapefile('', data_url, urlcache = True)
+        self.get_url = base64.urlsafe_b64decode(data_url_64)
+        self.precache = cache.PreCache(directory=tempfile.gettempdir())
+        self.precache.add(self.get_url)
+        self.precache.execute(self.async_callback(self.async_get))
+
+    def async_get(self):
+        shapefile_path = cached_compile.localize_shapefile('', self.get_url, urlcache = True)
 
         if not shapefile_path:
             return false
 
         json = json_encode({
-          'data_url': data_url,
+          'data_url': self.get_url,
           'srs': self.shapefile_projection(shapefile_path + '.shp')
         })
-
         self.jsonp(json, self.get_argument('jsoncallback', None))
+        self.finish()
 
     def shapefile_projection(self, shapefile_path):
         """ given a path to a shapefile, get the proj4 string """
@@ -120,22 +136,25 @@ class InspectDataHandler(tornado.web.RequestHandler, TileLive):
 
 class InspectLayerHandler(tornado.web.RequestHandler, TileLive):
     """ fields and field types of each datasource referenced by a mapfile """
+    @tornado.web.asynchronous
     def get(self, mapfile_64, layer_id_64):
-        mapnik_map = self.application._map_cache.get(mapfile_64)
-        layer_id   = base64.urlsafe_b64decode(layer_id_64)
+        self.layer_id = base64.urlsafe_b64decode(layer_id_64)
+        self.application._map_cache.get(mapfile_64, self.async_callback(self.async_get))
 
-        layer = self.layer_by_id(mapnik_map, layer_id)
+    def async_get(self, mapnik_map):
+        layer = self.layer_by_id(mapnik_map, self.layer_id)
         shapefile_path = layer.datasource.params().as_dict().get('file', None)
 
         if not shapefile_path:
             return false
 
         json = json_encode({
-          'layer_id': layer_id,
+          'layer_id': self.layer_id,
           'srs': self.shapefile_projection(shapefile_path)
         })
 
         self.jsonp(json, self.get_argument('jsoncallback', None))
+        self.finish()
 
     def shapefile_projection(self, shapefile_path):
         """ given a path to a shapefile, get the proj4 string """
@@ -149,17 +168,18 @@ class InspectLayerHandler(tornado.web.RequestHandler, TileLive):
 
 class InspectValueHandler(tornado.web.RequestHandler, TileLive):
     """ sample data from each datasource referenced by a mapfile """
-    def get(self, mapfile, layer_id_64, field_name_64):
+    @tornado.web.asynchronous
+    def get(self, mapfile_64, layer_id_64, field_name_64):
         self.set_header('Content-Type', 'text/javascript')
+        self.layer_id   = base64.urlsafe_b64decode(layer_id_64)
+        self.field_name = base64.urlsafe_b64decode(field_name_64)
+        self.application._map_cache.get(mapfile_64, self.async_callback(self.async_get))
 
-        layer_id   = base64.urlsafe_b64decode(layer_id_64)
-        field_name = base64.urlsafe_b64decode(field_name_64)
-        mapnik_map = self.application._map_cache.get(mapfile)
-
+    def async_get(self, mapnik_map):
         try:
-            layer = self.layer_by_id(mapnik_map, layer_id)
+            layer = self.layer_by_id(mapnik_map, self.layer_id)
 
-            field_values = [dict(f.properties).get(field_name)
+            field_values = [dict(f.properties).get(self.field_name)
                 for f in layer.datasource.all_features()]
 
             start = 0 + int(self.get_argument('start', 0))
@@ -172,16 +192,15 @@ class InspectValueHandler(tornado.web.RequestHandler, TileLive):
                 'min': min(field_values, **stringlen),
                 'max': max(field_values, **stringlen),
                 'count': len(set(field_values)),
-                'field': field_name,
+                'field': self.field_name,
                 'values': sorted(list(set(field_values)))[start:end]
             })
             self.jsonp(json, self.get_argument('jsoncallback', None))
-
         except IndexError:
             self.write(json_encode({'error': 'Layer not found'}))
         except Exception, e:
             self.write(json_encode({'error': 'Exception: %s' % e}))
-            
+        self.finish()
 
 class Application(tornado.web.Application):
     """ routers and settings for TileLite """
@@ -210,6 +229,6 @@ def main():
     http_server = tornado.httpserver.HTTPServer(Application())
     http_server.listen(options.port)
     tornado.ioloop.IOLoop.instance().start()
-    
+
 if __name__ == '__main__':
     main()
