@@ -74,6 +74,7 @@ class PreCache(TLCache):
     def __init__(self, **kwargs):
         self.locks = kwargs['locks']
         self.directory = kwargs['directory']
+        self.request_handler = kwargs['request_handler']
         self.requests = []
         self.callback = None
         self.kwargs = None
@@ -106,8 +107,12 @@ class PreCache(TLCache):
         the lock is released and we can proceed. """
     def standby(self, locked_url, **kwargs):
         if self.locks.has_key(locked_url):
-            print "Locked: " + locked_url
-            tornado.ioloop.IOLoop.instance().add_timeout(time.time() + 2, lambda: self.standby(locked_url, **kwargs))
+            if self.locks[locked_url] is True:
+                print "Locked: " + locked_url
+                tornado.ioloop.IOLoop.instance().add_timeout(time.time() + 2, lambda: self.standby(locked_url, **kwargs))
+            else:
+                self.request_handler.finish()
+                return
         else:
             print "Unlocked: " + locked_url
             self.completed = self.completed + 1
@@ -126,20 +131,21 @@ class PreCache(TLCache):
             base_dir = os.path.join(self.directory, base64.urlsafe_b64encode(response.effective_url))
             if not os.path.isdir(base_dir):
                 os.mkdir(base_dir)
-                for (expected, required) in (('.shp', True), ('.shx', True), ('.dbf', True), ('.prj', False)):
+                # Caching only requires that .shp is present
+                for (expected, required) in (('.shp', True), ('.shx', False), ('.dbf', False), ('.prj', False)):
                     if required and expected not in extensions:
                         raise Exception('Zip file %(shapefile)s missing extension "%(expected)s"' % locals())
-
                     for (info, extension, basename) in zip(infos, extensions, basenames):
                         if extension == expected:
                             file_data = zip_file.read(info.filename)
                             file_name = os.path.normpath('%(base_dir)s/%(basename)s' % locals())
-
                             file = open(file_name, 'wb')
                             file.write(file_data)
                             file.close()
         except:
-            print "Could not precache zip file: " + response.effective_url
+            self.locks[response.effective_url] = False
+            self.request_handler.finish()
+            return
         self.completed = self.completed + 1
         del self.locks[response.effective_url]
         if self.completed == len(self.requests):
@@ -161,11 +167,11 @@ class MapCache(TLCache):
         mapnik.load_map(self.mapnik_maps[url], "%s_compiled.xml" % self.filecache(url))
         compile_callback(self.mapnik_maps[url])
 
-    def get(self, url, callback):
+    def get(self, url, request_handler, callback):
         """ get a mapnik.Map object from a URL of a map.xml file, 
         regardless of cache status """
         if not self.mapnik_maps.has_key(url):
-            precache = PreCache(directory=tempfile.gettempdir(), locks=self.locks)
+            precache = PreCache(directory=tempfile.gettempdir(), request_handler=request_handler, locks=self.locks)
             doc = ElementTree.parse(urllib.urlopen(self.filecache(url)))
             map = doc.getroot()
             for layer in map.findall('Layer'):

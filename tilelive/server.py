@@ -62,7 +62,7 @@ class TileHandler(tornado.web.RequestHandler):
         self.x = x
         self.y = y
         self.filetype = filetype
-        self.application._map_cache.get(mapfile, self.async_callback(self.async_get))
+        self.application._map_cache.get(mapfile, self, self.async_callback(self.async_get))
 
     def async_get(self, mapnik_map):
         envelope = self.application._merc.xyz_to_envelope(self.x, self.y, self.z)
@@ -83,7 +83,7 @@ class InspectFieldHandler(tornado.web.RequestHandler, TileLive):
     """ fields and field types of each datasource referenced by a mapfile """
     @tornado.web.asynchronous
     def get(self, mapfile_64):
-        self.application._map_cache.get(mapfile_64, self.async_callback(self.async_get))
+        self.application._map_cache.get(mapfile_64, self, self.async_callback(self.async_get))
 
     def async_get(self, mapnik_map):
         json = json_encode(dict([
@@ -107,7 +107,7 @@ class InspectDataHandler(tornado.web.RequestHandler, TileLive):
     @tornado.web.asynchronous
     def get(self, data_url_64):
         self.get_url = base64.urlsafe_b64decode(data_url_64)
-        self.precache = cache.PreCache(directory=tempfile.gettempdir())
+        self.precache = cache.PreCache(directory=tempfile.gettempdir(), request_handler = self)
         self.precache.add(self.get_url)
         self.precache.execute(self.async_callback(self.async_get))
 
@@ -139,7 +139,7 @@ class InspectLayerHandler(tornado.web.RequestHandler, TileLive):
     @tornado.web.asynchronous
     def get(self, mapfile_64, layer_id_64):
         self.layer_id = base64.urlsafe_b64decode(layer_id_64)
-        self.application._map_cache.get(mapfile_64, self.async_callback(self.async_get))
+        self.application._map_cache.get(mapfile_64, self, self.async_callback(self.async_get))
 
     def async_get(self, mapnik_map):
         layer = self.layer_by_id(mapnik_map, self.layer_id)
@@ -173,7 +173,7 @@ class InspectValueHandler(tornado.web.RequestHandler, TileLive):
         self.set_header('Content-Type', 'text/javascript')
         self.layer_id   = base64.urlsafe_b64decode(layer_id_64)
         self.field_name = base64.urlsafe_b64decode(field_name_64)
-        self.application._map_cache.get(mapfile_64, self.async_callback(self.async_get))
+        self.application._map_cache.get(mapfile_64, self, self.async_callback(self.async_get))
 
     def async_get(self, mapnik_map):
         try:
