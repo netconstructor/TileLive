@@ -74,9 +74,13 @@ class TileHandler(tornado.web.RequestHandler):
             self.set_header('Content-Type', 'image/png')
             self.write(self.application._im.tostring('png'))
             self.finish()
-        except:
+        except RuntimeError:
             logging.error('Map for %s failed to render, cache reset', self.mapfile)
             self.application._map_cache.remove(self.mapfile)
+            # Retry exactly once to re-render this tile.
+            if not hasattr(self, 'retry'):
+                self.retry = True
+                self.get(self.mapfile, self.z, self.x, self.y, self.filetype)
 
 class MainHandler(tornado.web.RequestHandler):
     """ home page, of little consequence """
