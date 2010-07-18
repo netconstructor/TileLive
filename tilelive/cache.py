@@ -42,6 +42,7 @@ def locate(pattern, root=os.curdir):
 class TLCache(object):
     """ base cache object for TileLite """
     def __init__(self, **kwargs):
+        """ init object and ensure that cache dir exists """
         self.directory = kwargs.get('directory', '')
         if not os.path.isdir(self.directory): os.mkdir(self.directory)
 
@@ -61,6 +62,18 @@ class TLCache(object):
         chunks = lambda l, n: [l[x: x+n] for x in xrange(0, len(l), n)]
         url_64 = base64.urlsafe_b64encode(url)
         return chunks(url_64, 255)
+
+    def safe64dir(self, url):
+        """ use safe64 to create a proper directory
+
+        >>> t = TLCache(directory='/tmp/doctest')
+        >>> t.safe64dir('test')
+        'dGVzdA=='
+        >>> t.safe64dir('http://tilemill.s3.amazonaws.com/x86_64-1.9.part.86?AWSAccessKeyId=11YC4XXY9VV9X7K5F9G2&Expires=1378620506&Signature=DWXVChV4qYgkPyp5tjLD1Rc8XdIDWXVChV4qYgkPyp5tjLD1Rc8XdI%3DDWXVChV4qYgkPyp5tjLD1Rc8XdI%3D')
+        'aHR0cDovL3RpbGVtaWxsLnMzLmFtYXpvbmF3cy5jb20veDg2XzY0LTEuOS5wYXJ0Ljg2P0FXU0FjY2Vzc0tleUlkPTExWUM0WFhZOVZWOVg3SzVGOUcyJkV4cGlyZXM9MTM3ODYyMDUwNiZTaWduYXR1cmU9RFdYVkNoVjRxWWdrUHlwNXRqTEQxUmM4WGRJRFdYVkNoVjRxWWdrUHlwNXRqTEQxUmM4WGRJJTNERFdYVkNoVjRxWWdrUHlwNXR/qTEQxUmM4WGRJJTNE'
+        """
+
+        return "/".join(self.safe64(url))
 
     def url2fs(self, url):
         """ encode a URL to be safe as a filename """
@@ -91,10 +104,7 @@ simultaneously download the same remote resources.
 """
 class PreCache(TLCache):
     def __init__(self, **kwargs):
-        if kwargs.has_key('locks'):
-            self.locks = kwargs['locks']
-        else:
-            self.locks = []
+        self.locks = kwargs.get('locks', [])
         self.directory = kwargs['directory']
         self.request_handler = kwargs['request_handler']
         self.queue = []
@@ -117,10 +127,10 @@ class PreCache(TLCache):
 
     def process_request(self, request_url):
         # Directory exists, request has already been successfully processed.
-        base_dir = os.path.join(self.directory, base64.urlsafe_b64encode(request_url))
+        base_dir = os.path.join(self.directory, self.safe64dir(request_url))
         if os.path.isdir(base_dir):
-            if request_url in self.queue : self.queue.remove(request_url)
-            if request_url in self.locks : self.locks.remove(request_url)
+            if request_url in self.queue: self.queue.remove(request_url)
+            if request_url in self.locks: self.locks.remove(request_url)
         # Request is in queue and not locked. Fire asynchronous HTTP request.
         elif request_url in self.queue and request_url not in self.locks:
             self.queue.remove(request_url)
@@ -144,7 +154,7 @@ class PreCache(TLCache):
             # concurrent jobs at this point. Do not actually create the
             # directory until we are sure that a successful shapefile can be
             # extracted from a zip.
-            base_dir = os.path.join(self.directory, base64.urlsafe_b64encode(response.effective_url))
+            base_dir = os.path.join(self.directory, self.safe64dir(response.effective_url))
             if not os.path.isdir(base_dir):
                 zip_file = zipfile.ZipFile(StringIO.StringIO(response.body))
                 infos = zip_file.infolist()
