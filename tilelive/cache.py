@@ -108,11 +108,11 @@ class PreCache(TLCache):
         elif request_url in self.queue and request_url not in self.locks:
             self.queue.remove(request_url)
             self.locks.append(request_url)
+            logging.info("Locked: %s", request_url)
             http = tornado.httpclient.AsyncHTTPClient()
-            http.fetch(request_url, callback=self.cache)
+            http.fetch(request_url, request_timeout=60, callback=self.cache)
         # Request is in locks. Perform a holding pattern.
         elif request_url in self.locks:
-            logging.info("Locked: %s", request_url)
             tornado.ioloop.IOLoop.instance().add_timeout(time.time() + 5, lambda: self.process_request(request_url))
         # All queued requests have been processed. Continue to callback.
         if len(self.queue) == 0 and len(self.locks) == 0:
@@ -123,31 +123,37 @@ class PreCache(TLCache):
     def cache(self, response):
         import StringIO, zipfile
         try:
-            zip_file = zipfile.ZipFile(StringIO.StringIO(response.body))
-            infos = zip_file.infolist()
-            extensions = [os.path.splitext(info.filename)[1].lower() for info in infos]
-            basenames = [os.path.basename(info.filename).lower() for info in infos]
+            # Check that the directory does not exist yet, as there *can* be
+            # concurrent jobs at this point. Do not actually create the
+            # directory until we are sure that a successful shapefile can be
+            # extracted from a zip.
             base_dir = os.path.join(self.directory, base64.urlsafe_b64encode(response.effective_url))
-            # Caching only requires that .shp is present
-            for (expected, required) in (('.shp', True), ('.shx', False), ('.dbf', False), ('.prj', False)):
-                if required and expected not in extensions:
-                    raise Exception('Zip file %(shapefile)s missing extension "%(expected)s"' % locals())
-                for (info, extension, basename) in zip(infos, extensions, basenames):
-                    if extension == expected:
-                        if not os.path.isdir(base_dir):
-                            os.mkdir(base_dir)
-                        file_data = zip_file.read(info.filename)
-                        file_name = os.path.normpath('%(base_dir)s/%(basename)s' % locals())
-                        file = open(file_name, 'wb')
-                        file.write(file_data)
-                        file.close()
+            if not os.path.isdir(base_dir):
+                zip_file = zipfile.ZipFile(StringIO.StringIO(response.body))
+                infos = zip_file.infolist()
+                extensions = [os.path.splitext(info.filename)[1].lower() for info in infos]
+                basenames = [os.path.basename(info.filename).lower() for info in infos]
+                # Caching only requires that .shp is present
+                for (expected, required) in (('.shp', True), ('.shx', False), ('.dbf', False), ('.prj', False)):
+                    if required and expected not in extensions:
+                        raise Exception('Zip file %(shapefile)s missing extension "%(expected)s"' % locals())
+                    for (info, extension, basename) in zip(infos, extensions, basenames):
+                        if extension == expected:
+                            if not os.path.isdir(base_dir):
+                                os.mkdir(base_dir)
+                            file_data = zip_file.read(info.filename)
+                            file_name = os.path.normpath('%(base_dir)s/%(basename)s' % locals())
+                            file = open(file_name, 'wb')
+                            file.write(file_data)
+                            file.close()
         except:
             logging.info('Failed: %s', response.effective_url)
-            self.locks.remove(response.effective_url)
-            self.queue.append(response.effective_url)
+            if response.effective_url in self.locks : self.locks.remove(response.effective_url)
+            if response.effective_url not in self.queue : self.queue.append(response.effective_url)
             self.request_handler.finish()
             return
-        self.locks.remove(response.effective_url)
+        logging.info("Unlocked: %s", response.effective_url)
+        if response.effective_url in self.locks : self.locks.remove(response.effective_url)
         if len(self.queue) == 0 and len(self.locks) == 0:
             self.callback(**self.kwargs)
 
