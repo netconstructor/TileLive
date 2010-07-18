@@ -5,7 +5,7 @@ __copyright__ = 'Copyright 2009, Dane Springmeyer'
 __version__ = '0.1.3'
 __license__ = 'BSD'
 
-import os, sys, base64, tempfile
+import os, sys, base64, logging, tempfile
 import tornado.httpclient
 import tornado.httpserver
 import tornado.ioloop
@@ -62,15 +62,20 @@ class TileHandler(tornado.web.RequestHandler):
         self.x = x
         self.y = y
         self.filetype = filetype
+        self.mapfile = mapfile
         self.application._map_cache.get(mapfile, self, self.async_callback(self.async_get))
 
     def async_get(self, mapnik_map):
         envelope = self.application._merc.xyz_to_envelope(self.x, self.y, self.z)
         mapnik_map.zoom_to_box(envelope)
         mapnik_map.buffer_size = options.buffer_size
-        mapnik.render(mapnik_map, self.application._im)
-        self.set_header('Content-Type', 'image/png')
-        self.write(self.application._im.tostring('png'))
+        try:
+            mapnik.render(mapnik_map, self.application._im)
+            self.set_header('Content-Type', 'image/png')
+            self.write(self.application._im.tostring('png'))
+        except:
+            logging.error('Map for %s failed to render, cache reset', self.mapfile)
+            self.application._map_cache.remove(self.mapfile)
         self.finish()
 
 
@@ -170,7 +175,6 @@ class InspectValueHandler(tornado.web.RequestHandler, TileLive):
     """ sample data from each datasource referenced by a mapfile """
     @tornado.web.asynchronous
     def get(self, mapfile_64, layer_id_64, field_name_64):
-        self.set_header('Content-Type', 'text/javascript')
         self.layer_id   = base64.urlsafe_b64decode(layer_id_64)
         self.field_name = base64.urlsafe_b64decode(field_name_64)
         self.application._map_cache.get(mapfile_64, self, self.async_callback(self.async_get))
