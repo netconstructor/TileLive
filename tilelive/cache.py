@@ -85,12 +85,12 @@ class PreCache(TLCache):
         self.kwargs = None
         if not os.path.isdir(self.directory): os.mkdir(self.directory)
 
-    """ add a request to the queue """
     def add(self, url):
+        """ add a request to the queue """
         self.queue.append(url)
 
-    """ execute all requests and fire callback once completed """
     def execute(self, callback, **kwargs):
+        """ execute all requests and fire callback once completed """
         self.callback = callback
         self.kwargs = kwargs
         for url in copy.copy(self.queue):
@@ -119,8 +119,8 @@ class PreCache(TLCache):
             self.callback(**self.kwargs)
         return
 
-    """ asynchttp request callback. caches the downloaded zipfile. """
     def cache(self, response):
+        """ asynchttp request callback. caches the downloaded zipfile. """
         import StringIO, zipfile
         try:
             # Check that the directory does not exist yet, as there *can* be
@@ -193,7 +193,6 @@ class MapCache(TLCache):
             callback(self.mapnik_maps[url])
 
     def remove(self, url):
-        print url
         """ remove a map file, object and associated tiles from the cache """
         try:
             # remove the object and data files
