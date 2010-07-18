@@ -73,11 +73,10 @@ class TileHandler(tornado.web.RequestHandler):
             mapnik.render(mapnik_map, self.application._im)
             self.set_header('Content-Type', 'image/png')
             self.write(self.application._im.tostring('png'))
+            self.finish()
         except:
             logging.error('Map for %s failed to render, cache reset', self.mapfile)
             self.application._map_cache.remove(self.mapfile)
-        self.finish()
-
 
 class MainHandler(tornado.web.RequestHandler):
     """ home page, of little consequence """
