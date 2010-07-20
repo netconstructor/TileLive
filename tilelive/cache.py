@@ -1,5 +1,5 @@
 import os
-import base64
+import safe64
 import urllib2
 import urllib
 import urlparse
@@ -46,43 +46,14 @@ class TLCache(object):
         self.directory = kwargs.get('directory', '')
         if not os.path.isdir(self.directory): os.mkdir(self.directory)
 
-    def safe64(self, url):
-        """ create filesystem-safe places for url-keyed data to be stored
-        
-        >>> t = TLCache(directory='/tmp/doctest')
-        >>> t.safe64('test')
-        ['dGVzdA==']
-        >>> t = TLCache(directory='/tmp/doctest')
-        >>> k = t.safe64('http://tilemill.s3.amazonaws.com/x86_64-1.9.part.86?AWSAccessKeyId=11YC4XXY9VV9X7K5F9G2&Expires=1378620506&Signature=DWXVChV4qYgkPyp5tjLD1Rc8XdIDWXVChV4qYgkPyp5tjLD1Rc8XdI%3DDWXVChV4qYgkPyp5tjLD1Rc8XdI%3D')
-        >>> k
-        ['aHR0cDovL3RpbGVtaWxsLnMzLmFtYXpvbmF3cy5jb20veDg2XzY0LTEuOS5wYXJ0Ljg2P0FXU0FjY2Vzc0tleUlkPTExWUM0WFhZOVZWOVg3SzVGOUcyJkV4cGlyZXM9MTM3ODYyMDUwNiZTaWduYXR1cmU9RFdYVkNoVjRxWWdrUHlwNXRqTEQxUmM4WGRJRFdYVkNoVjRxWWdrUHlwNXRqTEQxUmM4WGRJJTNERFdYVkNoVjRxWWdrUHlwNXR', 'qTEQxUmM4WGRJJTNE']
-        >>> len(k[0]) == 255
-        True
-        """
-        chunks = lambda l, n: [l[x: x+n] for x in xrange(0, len(l), n)]
-        url_64 = base64.urlsafe_b64encode(url)
-        return chunks(url_64, 255)
-
-    def safe64dir(self, url):
-        """ use safe64 to create a proper directory
-
-        >>> t = TLCache(directory='/tmp/doctest')
-        >>> t.safe64dir('test')
-        'dGVzdA=='
-        >>> t.safe64dir('http://tilemill.s3.amazonaws.com/x86_64-1.9.part.86?AWSAccessKeyId=11YC4XXY9VV9X7K5F9G2&Expires=1378620506&Signature=DWXVChV4qYgkPyp5tjLD1Rc8XdIDWXVChV4qYgkPyp5tjLD1Rc8XdI%3DDWXVChV4qYgkPyp5tjLD1Rc8XdI%3D')
-        'aHR0cDovL3RpbGVtaWxsLnMzLmFtYXpvbmF3cy5jb20veDg2XzY0LTEuOS5wYXJ0Ljg2P0FXU0FjY2Vzc0tleUlkPTExWUM0WFhZOVZWOVg3SzVGOUcyJkV4cGlyZXM9MTM3ODYyMDUwNiZTaWduYXR1cmU9RFdYVkNoVjRxWWdrUHlwNXRqTEQxUmM4WGRJRFdYVkNoVjRxWWdrUHlwNXRqTEQxUmM4WGRJJTNERFdYVkNoVjRxWWdrUHlwNXR/qTEQxUmM4WGRJJTNE'
-        """
-
-        return "/".join(self.safe64(url))
-
     def url2fs(self, url):
         """ encode a URL to be safe as a filename """
         uri, extension = os.path.splitext(url)
-        return base64.urlsafe_b64encode(uri) + extension
+        return safe64.dir(uri) + extension
 
     def fs2url(self, url):
         """ decode a filename to the URL it is derived from """
-        return base64.urlsafe_b64decode(url)
+        return safe64.decode(url)
 
     def filecache(self, in_url):
         """ given a URL, return a local file path """
@@ -127,7 +98,7 @@ class PreCache(TLCache):
 
     def process_request(self, request_url):
         # Directory exists, request has already been successfully processed.
-        base_dir = os.path.join(self.directory, self.safe64dir(request_url))
+        base_dir = os.path.join(self.directory, safe64.dir(request_url))
         if os.path.isdir(base_dir):
             if request_url in self.queue: self.queue.remove(request_url)
             if request_url in self.locks: self.locks.remove(request_url)
@@ -140,11 +111,31 @@ class PreCache(TLCache):
             http.fetch(request_url, request_timeout=60, callback=self.cache)
         # Request is in locks. Perform a holding pattern.
         elif request_url in self.locks:
-            tornado.ioloop.IOLoop.instance().add_timeout(time.time() + 5, lambda: self.process_request(request_url))
+            tornado.ioloop.IOLoop.instance().add_timeout(
+                time.time() + 5, lambda: self.process_request(request_url))
         # All queued requests have been processed. Continue to callback.
         if len(self.queue) == 0 and len(self.locks) == 0:
             self.callback(**self.kwargs)
         return
+
+    def unzip_shapefile(zipdata, base_dir):
+        zip_file = zipfile.ZipFile(StringIO.StringIO(zipdata))
+        infos = zip_file.infolist()
+        extensions = [os.path.splitext(info.filename)[1].lower() for info in infos]
+        basenames  = [os.path.basename(info.filename).lower() for info in infos]
+        # Caching only requires that .shp is present
+        for (expected, required) in (('.shp', True), ('.shx', False), ('.dbf', False), ('.prj', False)):
+            if required and expected not in extensions:
+                raise Exception('Zip file %(shapefile)s missing extension "%(expected)s"' % locals())
+            for (info, extension, basename) in zip(infos, extensions, basenames):
+                if extension == expected:
+                    if not os.path.isdir(base_dir):
+                        os.makedirs(base_dir)
+                    file_data = zip_file.read(info.filename)
+                    file_name = os.path.normpath('%(base_dir)s/%(basename)s' % locals())
+                    file = open(file_name, 'wb')
+                    file.write(file_data)
+                    file.close()
 
     def cache(self, response):
         """ asynchttp request callback. caches the downloaded zipfile. """
@@ -154,25 +145,9 @@ class PreCache(TLCache):
             # concurrent jobs at this point. Do not actually create the
             # directory until we are sure that a successful shapefile can be
             # extracted from a zip.
-            base_dir = os.path.join(self.directory, self.safe64dir(response.effective_url))
+            base_dir = os.path.join(self.directory, safe64.dir(response.effective_url))
             if not os.path.isdir(base_dir):
-                zip_file = zipfile.ZipFile(StringIO.StringIO(response.body))
-                infos = zip_file.infolist()
-                extensions = [os.path.splitext(info.filename)[1].lower() for info in infos]
-                basenames = [os.path.basename(info.filename).lower() for info in infos]
-                # Caching only requires that .shp is present
-                for (expected, required) in (('.shp', True), ('.shx', False), ('.dbf', False), ('.prj', False)):
-                    if required and expected not in extensions:
-                        raise Exception('Zip file %(shapefile)s missing extension "%(expected)s"' % locals())
-                    for (info, extension, basename) in zip(infos, extensions, basenames):
-                        if extension == expected:
-                            if not os.path.isdir(base_dir):
-                                os.mkdir(base_dir)
-                            file_data = zip_file.read(info.filename)
-                            file_name = os.path.normpath('%(base_dir)s/%(basename)s' % locals())
-                            file = open(file_name, 'wb')
-                            file.write(file_data)
-                            file.close()
+                self.unzip_shapefile(response.body, base_dir)
         except:
             logging.info('Failed: %s', response.effective_url)
             if response.effective_url in self.locks : self.locks.remove(response.effective_url)
@@ -180,7 +155,7 @@ class PreCache(TLCache):
             self.request_handler.finish()
             return
         logging.info("Unlocked: %s", response.effective_url)
-        if response.effective_url in self.locks : self.locks.remove(response.effective_url)
+        if response.effective_url in self.locks: self.locks.remove(response.effective_url)
         if len(self.queue) == 0 and len(self.locks) == 0:
             self.callback(**self.kwargs)
 
@@ -200,21 +175,28 @@ class MapCache(TLCache):
         mapnik.load_map(self.mapnik_maps[url], "%s_compiled.xml" % self.filecache(url))
         compile_callback(self.mapnik_maps[url])
 
+    def mapfile_datasources(self, url):
+        """ parse a map.xml file and return the urls of all file-based datasources """
+        doc = ElementTree.parse(open(self.filecache(url)))
+        map = doc.getroot()
+        for layer in map.findall('Layer'):
+            for parameter in layer.find('Datasource').findall('Parameter'):
+                if parameter.get('name', None) == 'file':
+                    (scheme, netloc, path, params, query, fragment) = urlparse.urlparse(parameter.text)
+                    if scheme != '':
+                        yield parameter.text
+
     def get(self, url, request_handler, callback):
         """ get a mapnik.Map object from a URL of a map.xml file, 
         regardless of cache status """
         if not self.mapnik_maps.has_key(url):
             if not self.mapnik_locks.has_key(url):
                 self.mapnik_locks[url] = []
-            precache = PreCache(directory=tempfile.gettempdir(), request_handler=request_handler, locks=self.mapnik_locks[url])
-            doc = ElementTree.parse(urllib.urlopen(self.filecache(url)))
-            map = doc.getroot()
-            for layer in map.findall('Layer'):
-                for parameter in layer.find('Datasource').findall('Parameter'):
-                    if parameter.get('name', None) == 'file':
-                        (scheme, netloc, path, params, query, fragment) = urlparse.urlparse(parameter.text)
-                        if scheme != '':
-                            precache.add(parameter.text)
+            precache = PreCache(directory=tempfile.gettempdir(), 
+                request_handler=request_handler, 
+                locks=self.mapnik_locks[url])
+            for datasource_url in self.mapfile_datasources(url):
+                precache.add(datasource_url)
             precache.execute(self.compile, url=url, compile_callback=callback)
         else:
             callback(self.mapnik_maps[url])
@@ -229,7 +211,6 @@ class MapCache(TLCache):
                 del self.mapnik_locks[url]
             if os.path.isdir(os.path.join(self.directory, url)):
                 shutil.rmtree(os.path.join(self.directory, url))
-
         except Exception, e:
             return False
 
@@ -237,8 +218,7 @@ class MapCache(TLCache):
         """ return a list of cached URLs """
         return map(self.fs2url, 
               [x for x in os.listdir(self.directory) if 
-                os.path.isfile(os.path.join(self.directory, x))]
-          )
+                os.path.isfile(os.path.join(self.directory, x))])
 
 if __name__ == "__main__":
     import doctest
