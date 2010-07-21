@@ -1,26 +1,11 @@
-import os
-import safe64
-import urllib2
-import urllib
-import urlparse
-import fnmatch
-import zipfile
-import mapnik
-import shutil
-import cascadenik
+#!/usr/bin/env python
+
+import os, time, copy,tempfile, urllib2, urlparse
+import fnmatch, zipfile, shutil, logging
+
+import mapnik, cascadenik
 import tornado.httpclient
-import tempfile
-import time
-import copy
-import logging
-
-"""
-
-Cache backend for TileLive. Includes a MapCache backend for mapfiles,
-and a DataCache backend for data files. Static cache of 10 each, plus 
-non-managed file cache of all files of each.
-
-"""
+import safe64
 
 try:
     import lxml.etree as ElementTree
@@ -32,12 +17,14 @@ except ImportError:
     except ImportError:
         import elementtree.ElementTree as ElementTree
         from elementtree.ElementTree import Element
- 
-def locate(pattern, root=os.curdir):
-   """ find a file in a directory and its subdirectories """
-   for path, dirs, files in os.walk(os.path.abspath(root)):
-       for filename in fnmatch.filter(files, pattern):
-           yield os.path.join(path, filename)
+
+"""
+
+Cache backend for TileLive. Includes a MapCache backend for mapfiles,
+and a DataCache backend for data files. Static cache of 10 each, plus 
+non-managed file cache of all files of each.
+
+"""
 
 class TLCache(object):
     """ base cache object for TileLite """
@@ -170,8 +157,11 @@ class MapCache(TLCache):
         if not os.path.isdir(self.directory): os.mkdir(self.directory)
 
     def compile(self, url, compile_callback):
+        """ retrieve and compile a mapnik xml file. only called when the map
+        is not already in static cache. calls compile_callback when  """
         self.mapnik_maps[url] = mapnik.Map(self.tilesize, self.tilesize)
-        open("%s_compiled.xml" % self.filecache(url), 'w').write(cascadenik.compile(self.filecache(url), urlcache=True))
+        open("%s_compiled.xml" % self.filecache(url), 'w').write(
+            cascadenik.compile(self.filecache(url), urlcache=True))
         mapnik.load_map(self.mapnik_maps[url], "%s_compiled.xml" % self.filecache(url))
         compile_callback(self.mapnik_maps[url])
 
