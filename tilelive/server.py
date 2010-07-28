@@ -12,7 +12,7 @@ import tornado.ioloop
 import tornado.web
 from tornado.escape import json_encode
 from tornado.options import define, options
-import cache, sphericalmercator, cached_compile
+import cache, sphericalmercator
 from sphericalmercator import SphericalMercator
 from exceptions import KeyError
 from osgeo import ogr
@@ -118,12 +118,13 @@ class InspectDataHandler(tornado.web.RequestHandler, TileLive):
         self.precache = cache.PreCache(directory=tempfile.gettempdir(), request_handler = self)
         self.precache.add(self.get_url)
         self.precache.execute(self.async_callback(self.async_get))
+        return "Reimplementing"
 
     def async_get(self):
-        shapefile_path = cached_compile.localize_shapefile('', self.get_url, urlcache = True)
+        # shapefile_path = cached_compile.localize_shapefile('', self.get_url, urlcache = True)
 
-        if not shapefile_path:
-            return false
+        # if not shapefile_path:
+        #     return false
 
         json = json_encode({
           'data_url': self.get_url,
