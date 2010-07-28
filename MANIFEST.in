@@ -5,5 +5,7 @@ include LICENSE.txt
 include MANIFEST.in
 include README.txt
 recursive-include docs *
+recursive-include tilelive/templates *
+recursive-include tilelive/static *
 recursive-include utils *
 recursive-include demo *

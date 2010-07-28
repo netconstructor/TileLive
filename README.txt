@@ -14,6 +14,10 @@ From the client perspective, this branch of TileLite could be re-requesting data
 2. **Map and Data static cache** Rendering a map with Mapnik involves creating Mapnik objects that wrap datasources and mapfiles. This version of TileLite makes sure that the initialization time for these objects, which can be significant, is not a hit on performance for every tile request. As such, it maintains a [FIFO](http://en.wikipedia.org/wiki/FIFO) cache of `Mapnik.Datasource` and `Mapnik.Map` objects. This cache is small - it only contains 10 objects of each type. The intent is not to thoroughly cache such objects, but to take care of situations in which multiple maps are being requested simultaneously. This cache stays small, as well, because it is in memory and TileLite doesn't aim to do memory management.
 3. **Map and Data file cache** Map XML and Data files are cached locally by Mapnik. They are only removed when the cache is manually cleared by an authorized client - given the size of the files, it's unlikely that these files will fill a disk.
 
+## Caching Strategy
+
+* Tile request initially hits `TileHandler.get()`, which is marked with the @tornado
+
 ## Resources
 
 ### Tiles
