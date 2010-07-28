@@ -18,7 +18,7 @@ def chunk(url):
     """ create filesystem-safe places for url-keyed data to be stored """
     chunks = lambda l, n: [l[x: x+n] for x in xrange(0, len(l), n)]
     url_64 = base64.urlsafe_b64encode(url)
-    return chunks(url_64, 25) # TODO: 25 is a testing standin
+    return chunks(url_64, 255)
 
 def dir(url):
     """ use safe64 to create a proper directory """

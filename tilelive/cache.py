@@ -2,6 +2,7 @@
 
 import os, time, copy,tempfile, urllib2, urlparse
 import fnmatch, zipfile, shutil, logging
+import tornado, StringIO
 
 import mapnik, cascadenik
 import tornado.httpclient
@@ -65,6 +66,7 @@ class PreCache(TLCache):
         self.locks = kwargs.get('locks', [])
         self.directory = kwargs['directory']
         self.request_handler = kwargs['request_handler']
+        logging.info('running cache in %s' % self.directory)
         self.queue = []
         self.callback = None
         self.kwargs = None
@@ -105,7 +107,9 @@ class PreCache(TLCache):
             self.callback(**self.kwargs)
         return
 
-    def unzip_shapefile(zipdata, base_dir):
+    def unzip_shapefile(self, zipdata, base_dir):
+        """ unzip a shapefile into a directory, creating the directory
+        structure if it doesn't exist """
         zip_file = zipfile.ZipFile(StringIO.StringIO(zipdata))
         infos = zip_file.infolist()
         extensions = [os.path.splitext(info.filename)[1].lower() for info in infos]
@@ -126,7 +130,6 @@ class PreCache(TLCache):
 
     def cache(self, response):
         """ asynchttp request callback. caches the downloaded zipfile. """
-        import StringIO, zipfile
         try:
             # Check that the directory does not exist yet, as there *can* be
             # concurrent jobs at this point. Do not actually create the
@@ -135,8 +138,9 @@ class PreCache(TLCache):
             base_dir = os.path.join(self.directory, safe64.dir(response.request.url))
             if not os.path.isdir(base_dir):
                 self.unzip_shapefile(response.body, base_dir)
-        except:
+        except Exception, e:
             logging.info('Failed: %s', response.request.url)
+            logging.info('Exception: %s', e)
             if response.request.url in self.locks : self.locks.remove(response.request.url)
             if response.request.url not in self.queue : self.queue.append(response.request.url)
             self.request_handler.finish()
