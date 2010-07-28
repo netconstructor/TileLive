@@ -132,17 +132,17 @@ class PreCache(TLCache):
             # concurrent jobs at this point. Do not actually create the
             # directory until we are sure that a successful shapefile can be
             # extracted from a zip.
-            base_dir = os.path.join(self.directory, safe64.dir(response.effective_url))
+            base_dir = os.path.join(self.directory, safe64.dir(response.request.url))
             if not os.path.isdir(base_dir):
                 self.unzip_shapefile(response.body, base_dir)
         except:
-            logging.info('Failed: %s', response.effective_url)
-            if response.effective_url in self.locks : self.locks.remove(response.effective_url)
-            if response.effective_url not in self.queue : self.queue.append(response.effective_url)
+            logging.info('Failed: %s', response.request.url)
+            if response.request.url in self.locks : self.locks.remove(response.request.url)
+            if response.request.url not in self.queue : self.queue.append(response.request.url)
             self.request_handler.finish()
             return
-        logging.info("Unlocked: %s", response.effective_url)
-        if response.effective_url in self.locks: self.locks.remove(response.effective_url)
+        logging.info("Unlocked: %s", response.request.url)
+        if response.request.url in self.locks: self.locks.remove(response.request.url)
         if len(self.queue) == 0 and len(self.locks) == 0:
             self.callback(**self.kwargs)
 
@@ -185,8 +185,7 @@ class MapCache(TLCache):
             precache = PreCache(directory=tempfile.gettempdir(), 
                 request_handler=request_handler, 
                 locks=self.mapnik_locks[url])
-            for datasource_url in self.mapfile_datasources(url):
-                precache.add(datasource_url)
+            [precache.add(ds_url) for ds_url in self.mapfile_datasources(url)]
             precache.execute(self.compile, url=url, compile_callback=callback)
         else:
             callback(self.mapnik_maps[url])
