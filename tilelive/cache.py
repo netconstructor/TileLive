@@ -110,8 +110,13 @@ class PreCache(TLCache):
     def unzip_shapefile(self, zipdata, base_dir):
         """ unzip a shapefile into a directory, creating the directory
         structure if it doesn't exist """
-        zip_file = zipfile.ZipFile(StringIO.StringIO(zipdata))
-        infos = zip_file.infolist()
+        try:
+            import pylzma
+            zip_file = pylzma.Archive7z(StringIO.StringIO(zipdata))
+            infos = zip_file.getnames()
+        except ImportError:
+            zip_file = zipfile.ZipFile(StringIO.StringIO(zipdata))
+            infos = zip_file.infolist()
         extensions = [os.path.splitext(info.filename)[1].lower() for info in infos]
         basenames  = [os.path.basename(info.filename).lower() for info in infos]
         # Caching only requires that .shp is present
@@ -122,7 +127,11 @@ class PreCache(TLCache):
                 if extension == expected:
                     if not os.path.isdir(base_dir):
                         os.makedirs(base_dir)
-                    file_data = zip_file.read(info.filename)
+                    try:
+                        # pylzma
+                        file_data = zip_file.getmember(info.filename).read()
+                    except:
+                        file_data = zip_file.read(info.filename)
                     file_name = os.path.normpath('%(base_dir)s/%(basename)s' % locals())
                     file = open(file_name, 'wb')
                     file.write(file_data)
@@ -137,7 +146,7 @@ class PreCache(TLCache):
             # extracted from a zip.
             base_dir = os.path.join(self.directory, safe64.dir(response.request.url))
             if not os.path.isdir(base_dir):
-                self.unzip_shapefile(response.body, base_dir)
+                self.unzip_shapefile(response.body, base_dir, response.request)
         except Exception, e:
             logging.info('Failed: %s', response.request.url)
             logging.info('Exception: %s', e)
@@ -204,7 +213,7 @@ class MapCache(TLCache):
                 del self.mapnik_locks[url]
             if os.path.isdir(os.path.join(self.directory, url)):
                 shutil.rmtree(os.path.join(self.directory, url))
-        except Exception, e:
+        except Exception:
             return False
 
     def list(self):
