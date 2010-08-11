@@ -28,6 +28,8 @@ if not hasattr(mapnik,'Envelope'):
 define('port', default=8888, help='run on the given port', type=int)
 define('buffer_size', default=128, help='mapnik buffer size', type=int)
 define('tilesize', default=256, help='the size of generated tiles', type=int)
+define('inspect', default=False, help='open inspection endpoints for data', type=bool)
+define('geojson', default=False, help='allow output of GeoJSON', type=bool)
 
 class TileLive:
     def layer_by_id(self, mapnik_map, layer_id):
@@ -175,6 +177,42 @@ class InspectLayerHandler(tornado.web.RequestHandler, TileLive):
                 return layer.ExportToProj4()
         return False
 
+class InspectGeoJSONHandler(tornado.web.RequestHandler, TileLive):
+    """ envelopes of all features in a layer, as geojson """
+    @tornado.web.asynchronous
+    def get(self, mapfile_64, layer_id_64, field_name_64):
+        self.layer_id   = base64.urlsafe_b64decode(layer_id_64)
+        self.field_name = base64.urlsafe_b64decode(field_name_64)
+        self.application._map_cache.get(mapfile_64, self, 
+            self.async_callback(self.async_get))
+
+    def async_get(self, mapnik_map):
+        try:
+            json = json_encode({
+                'type':'FeatureCollection',
+                'features':[
+                  {
+                    'type':'Feature',
+                    'properties':dict(f.properties).get(self.field_name),
+                    'geometry':{
+                      'type':'Polygon',
+                      'coordinates': [[
+                        [f.envelope().minx, f.envelope().miny],
+                        [f.envelope().maxx, f.envelope().miny],
+                        [f.envelope().maxx, f.envelope().maxy],
+                        [f.envelope().minx, f.envelope().maxy]]]
+                      }
+                  }
+                  for f in self.layer_by_id(mapnik_map, self.layer_id).datasource.all_features()
+                ]
+            })
+            self.jsonp(json, self.get_argument('callback', None))
+        except IndexError:
+            self.write(json_encode({'error': 'Layer not found'}))
+        except Exception, e:
+            self.write(json_encode({'error': 'Exception: %s' % e}))
+        self.finish()
+
 class InspectValueHandler(tornado.web.RequestHandler, TileLive):
     """ sample data from each datasource referenced by a mapfile """
     @tornado.web.asynchronous
@@ -216,12 +254,16 @@ class Application(tornado.web.Application):
         handlers = [
             (r"/", MainHandler),
             (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(png|jpg|gif)", TileHandler),
-            (r"/([^/]+)/fields.json", InspectFieldHandler),
-            (r"/([^/]+)/data.json", InspectDataHandler),
-            (r"/([^/]+)/([^/]+)/layer.json", InspectLayerHandler),
-            # (r"/([^/]+)/([^/]+)/values.json", InspectLayerValuesHandler),
-            (r"/([^/]+)/([^/]+)/([^/]+)/values.json", InspectValueHandler),
         ]
+        if options.inspect:
+            handlers.extend(
+                [(r"/([^/]+)/fields.json", InspectFieldHandler),
+                (r"/([^/]+)/data.json", InspectDataHandler),
+                (r"/([^/]+)/([^/]+)/layer.json", InspectLayerHandler),
+                (r"/([^/]+)/([^/]+)/([^/]+)/values.json", InspectValueHandler)])
+        if options.geojson:
+            handlers.extend(
+                [(r"/([^/]+)/([^/]+)/([^/]+)/geo.json", InspectGeoJSONHandler)])
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), 'templates'),
             static_path=os.path.join(os.path.dirname(__file__), 'static'),
