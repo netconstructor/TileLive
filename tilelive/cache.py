@@ -107,14 +107,14 @@ class PreCache(TLCache):
             self.callback(**self.kwargs)
         return
 
-    def unzip_shapefile(self, zipdata, base_dir):
+    def unzip_shapefile(self, zipdata, base_dir, request):
         """ unzip a shapefile into a directory, creating the directory
         structure if it doesn't exist """
         try:
             import pylzma
             zip_file = pylzma.Archive7z(StringIO.StringIO(zipdata))
             infos = zip_file.getnames()
-        except ImportError:
+        except Exception:
             zip_file = zipfile.ZipFile(StringIO.StringIO(zipdata))
             infos = zip_file.infolist()
         extensions = [os.path.splitext(info.filename)[1].lower() for info in infos]
