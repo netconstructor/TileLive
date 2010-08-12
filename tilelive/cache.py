@@ -115,8 +115,20 @@ class PreCache(TLCache):
             zip_file = pylzma.Archive7z(StringIO.StringIO(zipdata))
             infos = zip_file.getnames()
         except Exception:
-            zip_file = zipfile.ZipFile(StringIO.StringIO(zipdata))
-            infos = zip_file.infolist()
+            try:
+                zip_file = zipfile.ZipFile(StringIO.StringIO(zipdata))
+                infos = zip_file.infolist()
+            except Exception, e:
+                logging.info('File is not a zipfile')
+                if not os.path.isdir(base_dir):
+                    os.makedirs(base_dir)
+                basename = os.path.basename(request.url)
+                file_name = os.path.normpath('%(base_dir)s/%(basename)s' % locals())
+                file = open(file_name, 'wb')
+                file.write(zipdata)
+                file.close()
+                return
+
         extensions = [os.path.splitext(info.filename)[1].lower() for info in infos]
         basenames  = [os.path.basename(info.filename).lower() for info in infos]
         # Caching only requires that .shp is present
