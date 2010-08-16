@@ -114,7 +114,7 @@ class PreCache(TLCache):
             import pylzma
             zip_file = pylzma.Archive7z(StringIO.StringIO(zipdata))
             infos = zip_file.getnames()
-        except Exception:
+        except ImportError:
             try:
                 zip_file = zipfile.ZipFile(StringIO.StringIO(zipdata))
                 infos = zip_file.infolist()
@@ -194,7 +194,11 @@ class MapCache(TLCache):
         """ parse a map.xml file and return the urls of all file-based datasources """
         doc = ElementTree.parse(open(self.filecache(url)))
         map = doc.getroot()
+        # ElementTree 1.3 will make this cleaner...
         for layer in map.findall('Layer'):
+            for parameter in layer.find('Datasource').findall('Parameter'):
+                if parameter.get('type', None) != 'shape':
+                    break
             for parameter in layer.find('Datasource').findall('Parameter'):
                 if parameter.get('name', None) == 'file':
                     (scheme, netloc, path, params, query, fragment) = urlparse.urlparse(parameter.text)
