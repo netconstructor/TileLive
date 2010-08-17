@@ -4,9 +4,14 @@ import os, time, copy,tempfile, urllib2, urlparse
 import fnmatch, zipfile, shutil, logging
 import tornado, StringIO
 
-import mapnik, cascadenik
+import cascadenik
 import tornado.httpclient
 import safe64
+
+try:
+    import mapnik2 as mapnik
+except ImportError:
+    import mapnik
 
 try:
     import lxml.etree as ElementTree
@@ -53,7 +58,6 @@ class TLCache(object):
             output.write(remote_file.read())
             output.close()
         return local_url
-
 
 class TileCache(TLCache):
 

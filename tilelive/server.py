@@ -61,34 +61,21 @@ class DataTileHandler(tornado.web.RequestHandler, TileLive):
     @tornado.web.asynchronous
     def get(self, mapfile, z, x, y, filetype):
         z, x, y = map(int, [z, x, y])
-        self.z = z
-        self.x = x
-        self.y = y
-        self.filetype = filetype
-        self.mapfile = mapfile
-        self.application._map_cache.get(mapfile, self, self.async_callback(self.async_get))
-
-    def async_get(self, mapnik_map):
-        envelope = self.application._merc.xyz_to_envelope(self.x, self.y, self.z)
-        mapnik_map.zoom_to_box(envelope)
-        mapnik_map.buffer_size = options.buffer_size
-        try:
-            mapnik.render(mapnik_map, self.application._im)
+        if options.tile_cache and self.application._tile_cache.contains(mapfile, 
+            "%d/%d/%d.%s" % (z, x, y, filetype)):
+            self.set_header('Content-Type', 'application/javascript')
+            self.write(self.application._tile_cache.get(mapfile, 
+                "%d/%d/%d.%s" % (z, x, y, filetype)))
             self.finish()
-        except RuntimeError:
-            logging.error('Map for %s failed to render, cache reset', self.mapfile)
-            self.application._map_cache.remove(self.mapfile)
-            # Retry exactly once to re-render this tile.
-            if not hasattr(self, 'retry'):
-                self.retry = True
-                self.get(self.mapfile, self.z, self.x, self.y, self.filetype)
+            return
+        # TODO: run tile getter to generate geojson
 
 class TileHandler(tornado.web.RequestHandler):
     """ handle all tile requests """
     @tornado.web.asynchronous
     def get(self, mapfile, z, x, y, filetype):
         z, x, y = map(int, [z, x, y])
-        if self.application._tile_cache.contains(mapfile, 
+        if options.tile_cache and self.application._tile_cache.contains(mapfile, 
             "%d/%d/%d.%s" % (z, x, y, filetype)):
             self.set_header('Content-Type', 'image/png')
             self.write(self.application._tile_cache.get(mapfile, 
@@ -112,9 +99,17 @@ class TileHandler(tornado.web.RequestHandler):
             im_data = self.application._im.tostring('png')
             self.write(im_data)
             self.finish()
-            self.application._tile_cache.set(self.mapfile, 
-                "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype), 
-                im_data)
+            if options.tile_cache:
+                # TODO: this makes dangerous assumptions about the content of the file string
+                mapnik_map.set_metawriter_property('tile_dir', 
+                    self.application._tile_cache.local_dir(self.mapfile, ''))
+                mapnik_map.set_metawriter_property('z', str(self.z))
+                mapnik_map.set_metawriter_property('x', str(self.x))
+                mapnik_map.set_metawriter_property('y', str(self.y))
+                url = "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)
+                self.application._tile_cache.prepare_dir(self.mapfile, url)
+                mapnik.render_to_file(mapnik_map, 
+                    self.application._tile_cache.local_url(self.mapfile, url))
             return
         except RuntimeError:
             logging.error('Map for %s failed to render, cache reset', self.mapfile)
@@ -135,7 +130,6 @@ class Application(tornado.web.Application):
         handlers = [
             (r"/", MainHandler),
             (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(png|jpg|gif)", TileHandler),
-            (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", DataTileHandler),
         ]
         if options.inspect:
             import inspect
@@ -154,6 +148,7 @@ class Application(tornado.web.Application):
 
         if options.tile_cache:
             self._tile_cache = cache.TileCache(directory='tiles')
+            handlers.extend([r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", DataTileHandler])
 
 def main():
     tornado.options.parse_command_line()
