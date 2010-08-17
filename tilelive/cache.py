@@ -54,6 +54,34 @@ class TLCache(object):
             output.close()
         return local_url
 
+
+class TileCache(TLCache):
+
+    def local_url(self, mapfile, url):
+        return os.path.join(self.directory, 
+            self.url2fs(mapfile), 
+            url)
+
+    def local_dir(self, mapfile, url):
+        return os.path.split(self.local_url(mapfile, url))[0]
+
+    def prepare_dir(self, mapfile, url):
+        if not os.path.isdir(os.path.split(self.local_url(mapfile, url))[0]):
+            os.makedirs(os.path.split(self.local_url(mapfile, url))[0])
+
+    def contains(self, mapfile, url):
+        return os.path.isfile(self.local_url(mapfile, url))
+
+    def set(self, mapfile, url, data):
+        self.prepare_dir(mapfile, url)
+        with open(self.local_url(mapfile, url), 'wb') as output:
+            output.write(data)
+            return self.local_url(mapfile, url)
+
+    def get(self, mapfile, url):
+        with open(self.local_url(mapfile, url), 'r') as f:
+            return f.read()
+
 """
 PreCache handler for TL. Provides an asynchronous queue of shapefile requests
 corresponding to a given map. Once all shapefile requests have been made and

@@ -30,6 +30,7 @@ define('buffer_size', default=128, help='mapnik buffer size', type=int)
 define('tilesize', default=256, help='the size of generated tiles', type=int)
 define('inspect', default=False, help='open inspection endpoints for data', type=bool)
 define('geojson', default=False, help='allow output of GeoJSON', type=bool)
+define('tile_cache', default=True, help='enable development tile cache', type=bool)
 
 class TileLive:
     def layer_by_id(self, mapnik_map, layer_id):
@@ -87,6 +88,13 @@ class TileHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     def get(self, mapfile, z, x, y, filetype):
         z, x, y = map(int, [z, x, y])
+        if self.application._tile_cache.contains(mapfile, 
+            "%d/%d/%d.%s" % (z, x, y, filetype)):
+            self.set_header('Content-Type', 'image/png')
+            self.write(self.application._tile_cache.get(mapfile, 
+                "%d/%d/%d.%s" % (z, x, y, filetype)))
+            self.finish()
+            return
         self.z = z
         self.x = x
         self.y = y
@@ -101,8 +109,13 @@ class TileHandler(tornado.web.RequestHandler):
         try:
             mapnik.render(mapnik_map, self.application._im)
             self.set_header('Content-Type', 'image/png')
-            self.write(self.application._im.tostring('png'))
+            im_data = self.application._im.tostring('png')
+            self.write(im_data)
             self.finish()
+            self.application._tile_cache.set(self.mapfile, 
+                "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype), 
+                im_data)
+            return
         except RuntimeError:
             logging.error('Map for %s failed to render, cache reset', self.mapfile)
             self.application._map_cache.remove(self.mapfile)
@@ -123,24 +136,24 @@ class Application(tornado.web.Application):
             (r"/", MainHandler),
             (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(png|jpg|gif)", TileHandler),
             (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", DataTileHandler),
-            (r"/features/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", FeatureTileHandler),
         ]
         if options.inspect:
             import inspect
             handlers.extend(inspect.handlers)
 
-        if options.geojson:
-            handlers.extend(
-                [(r"/([^/]+)/([^/]+)/([^/]+)/geo.json", InspectGeoJSONHandler)])
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), 'templates'),
             static_path=os.path.join(os.path.dirname(__file__), 'static'),
         )
+
         tornado.web.Application.__init__(self, handlers, **settings)
         self._merc = SphericalMercator(levels=23, size=256)
         self._mercator = mapnik.Projection("+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +no_defs +over")
         self._im = mapnik.Image(options.tilesize, options.tilesize)
         self._map_cache = cache.MapCache(directory='mapfiles')
+
+        if options.tile_cache:
+            self._tile_cache = cache.TileCache(directory='tiles')
 
 def main():
     tornado.options.parse_command_line()
