@@ -112,7 +112,8 @@ class PreCache(TLCache):
         structure if it doesn't exist """
         try:
             import pylzma
-            zip_file = pylzma.Archive7z(StringIO.StringIO(zipdata))
+            from py7zlib import Archive7z
+            zip_file = Archive7z(StringIO.StringIO(zipdata))
             infos = zip_file.getnames()
         except ImportError:
             try:
@@ -196,9 +197,9 @@ class MapCache(TLCache):
         map = doc.getroot()
         # ElementTree 1.3 will make this cleaner...
         for layer in map.findall('Layer'):
-            for parameter in layer.find('Datasource').findall('Parameter'):
-                if parameter.get('type', None) != 'shape':
-                    break
+            type = [p for p in layer.find('Datasource').findall('Parameter') if 'type' in p.keys() and p.get('type', None) != 'shape']
+            if len(type) == 0:
+                break
             for parameter in layer.find('Datasource').findall('Parameter'):
                 if parameter.get('name', None) == 'file':
                     (scheme, netloc, path, params, query, fragment) = urlparse.urlparse(parameter.text)
