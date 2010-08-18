@@ -66,15 +66,16 @@ class DataTileHandler(tornado.web.RequestHandler, TileLive):
     """ handle all tile requests """
     @tornado.web.asynchronous
     def get(self, mapfile, z, x, y, filetype):
+        # TODO: run tile getter to generate geojson
         z, x, y = map(int, [z, x, y])
         if options.tile_cache and self.application._tile_cache.contains(mapfile, 
             "%d/%d/%d.%s" % (z, x, y, filetype)):
             self.set_header('Content-Type', 'application/javascript')
-            self.write(self.application._tile_cache.get(mapfile, 
-                "%d/%d/%d.%s" % (z, x, y, filetype)))
+            self.jsonp(self.application._tile_cache.get(mapfile, 
+                "%d/%d/%d.%s" % (z, x, y, filetype)),
+                self.get_argument('jsoncallback', None))
             self.finish()
             return
-        # TODO: run tile getter to generate geojson
 
 class TileHandler(tornado.web.RequestHandler):
     """ handle all tile requests """
@@ -141,6 +142,10 @@ class Application(tornado.web.Application):
             import inspect
             handlers.extend(inspect.handlers)
 
+        if options.tile_cache:
+            self._tile_cache = cache.TileCache(directory='tiles')
+            handlers.extend([(r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", DataTileHandler)])
+
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), 'templates'),
             static_path=os.path.join(os.path.dirname(__file__), 'static'),
@@ -152,9 +157,6 @@ class Application(tornado.web.Application):
         self._im = mapnik.Image(options.tilesize, options.tilesize)
         self._map_cache = cache.MapCache(directory='mapfiles')
 
-        if options.tile_cache:
-            self._tile_cache = cache.TileCache(directory='tiles')
-            handlers.extend([r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", DataTileHandler])
 
 def main():
     tornado.options.parse_command_line()
