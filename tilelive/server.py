@@ -41,6 +41,10 @@ define('point_query', default=True,
     help='enable point query', type=bool)
 
 class TileLive:
+    def rle_encode(self, l):
+        from itertools import groupby
+        return ["%d:%s" % (len(list(group)), name) for name, group in groupby(l)]
+      
     def layer_by_id(self, mapnik_map, layer_id):
         """
         find a layer in a map, given a map id that a user puts as a param
@@ -122,6 +126,54 @@ class DataTileHandler(tornado.web.RequestHandler, TileLive):
                 self.retry = True
                 self.get(self.mapfile, self.z, self.x, self.y, self.filetype)
 
+
+
+
+
+class GridTileHandler(tornado.web.RequestHandler, TileLive):
+    """ handle all tile requests """
+    @tornado.web.asynchronous
+    def get(self, mapfile, z, x, y, filetype):
+        z, x, y = map(int, [z, x, y])
+        self.z = z
+        self.x = x
+        self.y = y
+        self.filetype = filetype
+        self.mapfile = mapfile
+        self.application._map_cache.get(mapfile, self, self.async_callback(self.async_get))
+
+    def async_get(self, mapnik_map):
+        envelope = self.application._merc.xyz_to_envelope(self.x, self.y, self.z)
+        mapnik_map.zoom_to_box(envelope)
+        mapnik_map.buffer_size = options.buffer_size
+        try:
+            # TODO: RLE
+            fg = [] # feature grid
+            for y in range(0, 256, 4):
+                for x in range(0, 256, 4):
+                    featureset = mapnik_map.query_map_point(0,x,y)
+                    added = False
+                    for feature in featureset.features:
+                        fg.append(feature.properties['CODE2'])
+                        added = True
+                    if not added:
+                        fg.append('')
+
+            # TODO: Test for completely blank ones
+            self.jsonp({'features': str('|'.join(self.rle_encode(fg)))}, self.get_argument('callback', None))
+            #mapnik.render(mapnik_map, self.application._im)
+            #self.set_header('Content-Type', 'image/png')
+            #self.write(self.application._im.tostring('png'))
+            self.finish()
+        except RuntimeError:
+            logging.error('Map for %s failed to render, cache reset', self.mapfile)
+            self.application._map_cache.remove(self.mapfile)
+            # Retry exactly once to re-render this tile.
+            if not hasattr(self, 'retry'):
+                self.retry = True
+                self.get(self.mapfile, self.z, self.x, self.y, self.filetype)
+
+
 class TileHandler(tornado.web.RequestHandler):
     """ handle all tile requests """
     @tornado.web.asynchronous
@@ -194,7 +246,8 @@ class Application(tornado.web.Application):
 
         if options.tile_cache:
             self._tile_cache = cache.TileCache(directory='tiles')
-            handlers.extend([(r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", DataTileHandler)])
+            # handlers.extend([(r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", DataTileHandler)])
+            handlers.extend([(r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", GridTileHandler)])
 
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), 'templates'),
