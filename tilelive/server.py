@@ -25,12 +25,18 @@ except ImportError:
 if not hasattr(mapnik,'Envelope'):
     mapnik.Envelope = mapnik.Box2d
 
-define('port', default=8888, help='run on the given port', type=int)
-define('buffer_size', default=128, help='mapnik buffer size', type=int)
-define('tilesize', default=256, help='the size of generated tiles', type=int)
-define('inspect', default=False, help='open inspection endpoints for data', type=bool)
-define('geojson', default=False, help='allow output of GeoJSON', type=bool)
-define('tile_cache', default=True, help='enable development tile cache', type=bool)
+define('port', default=8888, 
+    help='run on the given port', type=int)
+define('buffer_size', default=128, 
+    help='mapnik buffer size', type=int)
+define('tilesize', default=256, 
+    help='the size of generated tiles', type=int)
+define('inspect', default=False, 
+    help='open inspection endpoints for data', type=bool)
+define('geojson', default=False, 
+    help='allow output of GeoJSON', type=bool)
+define('tile_cache', default=True, 
+    help='enable development tile cache', type=bool)
 
 class TileLive:
     def layer_by_id(self, mapnik_map, layer_id):
