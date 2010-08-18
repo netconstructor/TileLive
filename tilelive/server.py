@@ -37,6 +37,8 @@ define('geojson', default=False,
     help='allow output of GeoJSON', type=bool)
 define('tile_cache', default=True, 
     help='enable development tile cache', type=bool)
+define('point_query', default=True, 
+    help='enable point query', type=bool)
 
 class TileLive:
     def layer_by_id(self, mapnik_map, layer_id):
@@ -76,6 +78,49 @@ class DataTileHandler(tornado.web.RequestHandler, TileLive):
                 self.get_argument('jsoncallback', None))
             self.finish()
             return
+        self.z = z
+        self.x = x
+        self.y = y
+        self.filetype = filetype
+        self.mapfile = mapfile
+        self.application._map_cache.get(mapfile, self, self.async_callback(self.async_get))
+
+    def async_get(self, mapnik_map):
+        envelope = self.application._merc.xyz_to_envelope(self.x, self.y, self.z)
+        mapnik_map.zoom_to_box(envelope)
+        mapnik_map.buffer_size = options.buffer_size
+        try:
+            # TODO: this makes dangerous assumptions about the content of the file string
+            mapnik_map.set_metawriter_property('tile_dir', 
+                self.application._tile_cache.local_dir(self.mapfile, ''))
+            mapnik_map.set_metawriter_property('z', str(self.z))
+            mapnik_map.set_metawriter_property('x', str(self.x))
+            mapnik_map.set_metawriter_property('y', str(self.y))
+            url = "%d/%d/%d.%s" % (self.z, self.x, self.y, 'png')
+            self.application._tile_cache.prepare_dir(self.mapfile, url)
+            mapnik.render_to_file(mapnik_map, 
+                self.application._tile_cache.local_url(self.mapfile, url))
+            json_url = "%d/%d/%d.%s" % (self.z, self.x, self.y, 'json')
+            if not os.path.isfile(self.application._tile_cache.local_url(self.mapfile, json_url)):
+                o = open(self.application._tile_cache.local_url(self.mapfile, json_url), 'w')
+                o.writelines("""
+                { "type": "FeatureCollection",
+                  "features": [
+                """)
+                o.close()
+
+            self.set_header('Content-Type', 'application/javascript')
+            self.jsonp(self.application._tile_cache.get(self.mapfile, 
+                "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)),
+                self.get_argument('jsoncallback', None))
+            self.finish()
+        except RuntimeError:
+            logging.error('Map for %s failed to render, cache reset', self.mapfile)
+            self.application._map_cache.remove(self.mapfile)
+            # Retry exactly once to re-render this tile.
+            if not hasattr(self, 'retry'):
+                self.retry = True
+                self.get(self.mapfile, self.z, self.x, self.y, self.filetype)
 
 class TileHandler(tornado.web.RequestHandler):
     """ handle all tile requests """
@@ -138,9 +183,14 @@ class Application(tornado.web.Application):
             (r"/", MainHandler),
             (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(png|jpg|gif)", TileHandler),
         ]
+
         if options.inspect:
             import inspect
             handlers.extend(inspect.handlers)
+
+        if options.point_query:
+            import point_query
+            handlers.extend(point_query.handlers)
 
         if options.tile_cache:
             self._tile_cache = cache.TileCache(directory='tiles')

@@ -1,3 +1,15 @@
+#!/usr/bin/env python
+
+import tornado
+from server import TileLive
+
+"""
+  
+  Data type inspection machinery. Could be sensitive; don't enable this
+  all the time.
+
+"""
+
 class InspectValueHandler(tornado.web.RequestHandler, TileLive):
     """ sample data from each datasource referenced by a mapfile """
     @tornado.web.asynchronous
