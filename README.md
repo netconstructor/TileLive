@@ -38,20 +38,20 @@ From the client perspective, this branch of TileLite could be re-requesting data
 
     http://toomanypets.com/{base64-encoded mapfile url}/{z}/{x}/{y}.png
 
+### Data Tiles
+
+    http://toomanypets.com/{base64-encoded mapfile url}/{z}/{x}/{y}.json
+
 ### Data fields
 
     http://toomanypets.com/{base64-encoded mapfile url}/fields.json
-
-### Cache Status
-
-    http://toomanypets.com/cache.json
 
 ## Requires
 
 This software is unsupported on Windows
 
-* Python 2.5 or 2.6
-* Mapnik (>= 0.6.0)
+* Python 2.5 - 2.7
+* **Mapnik 2** is **required** to use the metawriter functionality in this branch.
 * [Cascadenik](http://code.google.com/p/mapnik-utils/wiki/Cascadenik)
  * [Mac OSX Installers](http://dbsgeo.com/downloads/)
  * [Installation on Linux](http://trac.mapnik.org/wiki/LinuxInstallation)
@@ -63,6 +63,15 @@ For deployment, running a fast server like [Nginx](http://nginx.org/) in front o
 1. Download or git clone TileLive
 2. `python setup.py install`
 3. Run `liveserv.py` in your Terminal
+
+## Runtime options
+
+    --buffer_size                    mapnik buffer size
+    --geojson                        allow output of GeoJSON
+    --inspect                        open inspection endpoints for data
+    --port                           run on the given port
+    --tile_cache                     enable development tile cache
+    --tilesize                       the size of generated tiles
 
 ## Integration
 
