@@ -77,7 +77,7 @@ class DataTileHandler(tornado.web.RequestHandler, TileLive):
         z, x, y = map(int, [z, x, y])
         if options.tile_cache and self.application._tile_cache.contains(mapfile, 
             "%d/%d/%d.%s" % (z, x, y, filetype)):
-            self.set_header('Content-Type', 'application/javascript')
+            self.set_header('Content-Type', 'text/javascript')
             self.jsonp(self.application._tile_cache.get(mapfile, 
                 "%d/%d/%d.%s" % (z, x, y, filetype)),
                 self.get_argument('jsoncallback', None))
@@ -114,7 +114,7 @@ class DataTileHandler(tornado.web.RequestHandler, TileLive):
                 """)
                 o.close()
 
-            self.set_header('Content-Type', 'application/javascript')
+            self.set_header('Content-Type', 'text/javascript')
             self.jsonp(self.application._tile_cache.get(self.mapfile, 
                 "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)),
                 self.get_argument('jsoncallback', None))
@@ -137,13 +137,14 @@ class GridTileHandler(tornado.web.RequestHandler, TileLive):
     def get(self, mapfile, z, x, y):
         filetype = 'grid.json'
         z, x, y = map(int, [z, x, y])
-        if options.tile_cache and self.application._tile_cache.contains(mapfile, 
-            "%d/%d/%d.%s" % (z, x, y, filetype)):
-            logging.info('serving from cache')
-            self.write(self.application._tile_cache.get(mapfile, 
-                "%d/%d/%d.%s" % (z, x, y, filetype)))
-            self.finish()
-            return
+        # if options.tile_cache and self.application._tile_cache.contains(mapfile, 
+        #     "%d/%d/%d.%s" % (z, x, y, filetype)):
+        #     logging.info('serving from cache')
+        #     self.set_header('Content-Type', 'text/javascript')
+        #     self.write(self.application._tile_cache.get(mapfile, 
+        #         "%d/%d/%d.%s" % (z, x, y, filetype)))
+        #     self.finish()
+        #     return
         self.z = z
         self.x = x
         self.y = y
