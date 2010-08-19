@@ -159,11 +159,7 @@ class GridTileHandler(tornado.web.RequestHandler, TileLive):
                     if not added:
                         fg.append('')
 
-            # TODO: Test for completely blank ones
             self.jsonp({'features': str('|'.join(self.rle_encode(fg)))}, self.get_argument('callback', None))
-            #mapnik.render(mapnik_map, self.application._im)
-            #self.set_header('Content-Type', 'image/png')
-            #self.write(self.application._im.tostring('png'))
             self.finish()
         except RuntimeError:
             logging.error('Map for %s failed to render, cache reset', self.mapfile)
@@ -247,7 +243,8 @@ class Application(tornado.web.Application):
         if options.tile_cache:
             self._tile_cache = cache.TileCache(directory='tiles')
             # handlers.extend([(r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", DataTileHandler)])
-            handlers.extend([(r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", GridTileHandler)])
+            handlers.extend([(r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", DataTileHandler)])
+            handlers.extend([(r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.grid\.(json)", GridTileHandler)])
 
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), 'templates'),
