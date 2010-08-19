@@ -67,6 +67,7 @@ class TileLive:
         else:
             self.set_header('Content-Type', 'application/json')
         self.write(json)
+        return json
 
 class DataTileHandler(tornado.web.RequestHandler, TileLive):
     """ handle all tile requests """
@@ -133,8 +134,16 @@ class DataTileHandler(tornado.web.RequestHandler, TileLive):
 class GridTileHandler(tornado.web.RequestHandler, TileLive):
     """ handle all tile requests """
     @tornado.web.asynchronous
-    def get(self, mapfile, z, x, y, filetype):
+    def get(self, mapfile, z, x, y):
+        filetype = 'grid.json'
         z, x, y = map(int, [z, x, y])
+        if options.tile_cache and self.application._tile_cache.contains(mapfile, 
+            "%d/%d/%d.%s" % (z, x, y, filetype)):
+            logging.info('serving from cache')
+            self.write(self.application._tile_cache.get(mapfile, 
+                "%d/%d/%d.%s" % (z, x, y, filetype)))
+            self.finish()
+            return
         self.z = z
         self.x = x
         self.y = y
@@ -158,8 +167,10 @@ class GridTileHandler(tornado.web.RequestHandler, TileLive):
                         added = True
                     if not added:
                         fg.append('')
-
-            self.jsonp({'features': str('|'.join(self.rle_encode(fg)))}, self.get_argument('callback', None))
+            jsonp_str = self.jsonp({'features': str('|'.join(self.rle_encode(fg)))}, self.get_argument('callback', None))
+            logging.info('wrote jsonp')
+            json_url = "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)
+            self.application._tile_cache.set(self.mapfile, json_url, jsonp_str)
             self.finish()
         except RuntimeError:
             logging.error('Map for %s failed to render, cache reset', self.mapfile)
@@ -244,7 +255,7 @@ class Application(tornado.web.Application):
             self._tile_cache = cache.TileCache(directory='tiles')
             # handlers.extend([(r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", DataTileHandler)])
             handlers.extend([(r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", DataTileHandler)])
-            handlers.extend([(r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.grid\.(json)", GridTileHandler)])
+            handlers.extend([(r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.grid\.json", GridTileHandler)])
 
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), 'templates'),
