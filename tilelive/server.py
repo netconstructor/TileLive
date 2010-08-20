@@ -137,14 +137,14 @@ class GridTileHandler(tornado.web.RequestHandler, TileLive):
     def get(self, mapfile, z, x, y):
         filetype = 'grid.json'
         z, x, y = map(int, [z, x, y])
-        # if options.tile_cache and self.application._tile_cache.contains(mapfile, 
-        #     "%d/%d/%d.%s" % (z, x, y, filetype)):
-        #     logging.info('serving from cache')
-        #     self.set_header('Content-Type', 'text/javascript')
-        #     self.write(self.application._tile_cache.get(mapfile, 
-        #         "%d/%d/%d.%s" % (z, x, y, filetype)))
-        #     self.finish()
-        #     return
+        if options.tile_cache and self.application._tile_cache.contains(mapfile, 
+            "%d/%d/%d.%s" % (z, x, y, filetype)):
+            logging.info('serving from cache')
+            self.set_header('Content-Type', 'text/javascript')
+            self.write(self.application._tile_cache.get(mapfile, 
+                "%d/%d/%d.%s" % (z, x, y, filetype)))
+            self.finish()
+            return
         self.z = z
         self.x = x
         self.y = y
@@ -164,7 +164,7 @@ class GridTileHandler(tornado.web.RequestHandler, TileLive):
                     featureset = mapnik_map.query_map_point(0,x,y)
                     added = False
                     for feature in featureset.features:
-                        fg.append(feature.properties['CODE2'])
+                        fg.append(feature['CODE2'])
                         added = True
                     if not added:
                         fg.append('')

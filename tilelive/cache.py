@@ -79,7 +79,8 @@ class TileCache(TLCache):
     def set(self, mapfile, url, data):
         self.prepare_dir(mapfile, url)
         with open(self.local_url(mapfile, url), 'wb') as output:
-            output.write(data)
+            if (data):
+                output.write(data)
             return self.local_url(mapfile, url)
 
     def get(self, mapfile, url):
