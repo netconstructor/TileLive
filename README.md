@@ -1,7 +1,5 @@
 # TileLite
 
-An ultra lightweight Mapnik tile-server written as a WSGI (Web Server Gateway Interface) application.
-
 This is a branch of TileLite - it significantly changes the way that tiles are requested and data is stored. The main TileLite branch works as a traditional tile server - the user specifies a Mapnik XML file or Cascadenik file at startup and datasources are initialized at that point.
 
 In contrast, this branch doesn't require a mapping server to intially contain any layer configuration, data, or mapfiles. Instead, the data and mapfile for each request is specified *within the tile URL*. Performance is ensured by caching, so that tile requests of this type are typically as fast as the other system, and further performance tweaks make this branch faster in certain cases. However, it is necessary to underline the fact that the schemes for requesting tiles for the two applications are different and incompatible.
@@ -42,6 +40,10 @@ From the client perspective, this branch of TileLite could be re-requesting data
 
     http://toomanypets.com/{base64-encoded mapfile url}/{z}/{x}/{y}.json
 
+### Grid Tiles
+
+    http://toomanypets.com/{base64-encoded mapfile url}/{z}/{x}/{y}.grid.json
+
 ### Data fields
 
     http://toomanypets.com/{base64-encoded mapfile url}/fields.json
@@ -64,6 +66,22 @@ For deployment, running a fast server like [Nginx](http://nginx.org/) in front o
 2. `python setup.py install`
 3. Run `liveserv.py` in your Terminal
 
+## Mapfiles
+
+TileLiteLive has some expectations about provided mapfiles, given the great variety of mapfiles possible with Mapnik and its demands upon how data is handled.
+
+In order to support data tiles (enabled whenever `--tile_cache` is set), the mapfile must contain a valid MetaWriter entry
+
+    <MetaWriter 
+        name="metawriter" 
+        only-nonempty="false"
+        type="point" 
+        file="[tile_dir]/[z]/[x]/[y].json" />
+
+The only support value of `type` is `point` and the only supported value of `file` is `[tile_dir]/[z]/[x]/[y].json` as shown.
+
+Mapfiles should specify a map in EPSG:900913 projection. Support of datasources in mapfiles is dependent upon the version of Cascadenik.
+
 ## Runtime options
 
     --buffer_size                    mapnik buffer size
@@ -75,7 +93,7 @@ For deployment, running a fast server like [Nginx](http://nginx.org/) in front o
 
 ## Integration
 
-The [StyleWriter](http://github.com/tmcw/stylewriter) Drupal module provides integration with TileLite, both for generating mapfiles handling tiles. Any system capable of base64-encoding can be used with this tile layout scheme.
+The [StyleWriter](http://github.com/tmcw/stylewriter) Drupal module provides integration with TileLite, both for generating mapfiles handling tiles. Any system capable of base64-encoding can be used with this tile layout scheme. This module, as well as Drupal itself, are by no means required for TileLive operation; it can be used with any client that provides mapfiles and uses a map display library compatible with the XYZ/OSM specification. 
 
 ## Seeding
 
