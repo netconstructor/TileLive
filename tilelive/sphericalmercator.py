@@ -41,7 +41,7 @@ class SphericalMercator(object):
         """ convert a latitude, longitude pair to a pixel """
         d = self.zc[zoom]
         e = round(d[0] + px[0] * self.Bc[zoom])
-        f = self.minmax(math.sin(DEG_TO_RAD * px[1]),-0.9999,0.9999)
+        f = self.minmax(math.sin(self.DEG_TO_RAD * px[1]),-0.9999,0.9999)
         g = round(d[1] + 0.5 * math.log((1+f)/(1-f))*-self.Cc[zoom])
         return (e,g)
     

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os, time, copy,tempfile, urllib2, urlparse
-import fnmatch, zipfile, shutil, logging
+import zipfile, shutil, logging
 import tornado, StringIO
 
 import cascadenik
@@ -152,7 +152,7 @@ class PreCache(TLCache):
             try:
                 zip_file = zipfile.ZipFile(StringIO.StringIO(zipdata))
                 infos = zip_file.infolist()
-            except Exception, e:
+            except Exception:
                 logging.info('File is not a zipfile')
                 if not os.path.isdir(base_dir):
                     os.makedirs(base_dir)

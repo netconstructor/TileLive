@@ -5,17 +5,18 @@ __copyright__ = 'Copyright 2009, Dane Springmeyer'
 __version__ = '0.1.3'
 __license__ = 'BSD'
 
-import os, sys, base64, logging, tempfile
+import os, logging
+from exceptions import KeyError
+
 import tornado.httpclient
 import tornado.httpserver
 import tornado.ioloop
 import tornado.web
-from tornado.escape import json_encode
+
 from tornado.options import define, options
-import cache, sphericalmercator
+
 from sphericalmercator import SphericalMercator
-from exceptions import KeyError
-from osgeo import ogr
+import cache
 
 try:
     import mapnik2 as mapnik
@@ -40,8 +41,9 @@ define('tile_cache', default=True,
 define('point_query', default=True, 
     help='enable point query', type=bool)
 
-class TileLive:
+class TileLive(object):
     def rle_encode(self, l):
+        """ encode a list of strings with run-length compression """
         from itertools import groupby
         return ["%d:%s" % (len(list(group)), name) for name, group in groupby(l)]
       
@@ -70,24 +72,21 @@ class TileLive:
         return json
 
 class DataTileHandler(tornado.web.RequestHandler, TileLive):
-    """ handle all tile requests """
+    """ serve GeoJSON tiles created by metawriters """
     @tornado.web.asynchronous
     def get(self, mapfile, z, x, y, filetype):
         # TODO: run tile getter to generate geojson
-        z, x, y = map(int, [z, x, y])
-        if options.tile_cache and self.application._tile_cache.contains(mapfile, 
-            "%d/%d/%d.%s" % (z, x, y, filetype)):
+        self.z, self.x, self.y = map(int, [z, x, y])
+        self.filetype = filetype
+        self.mapfile = mapfile
+        if options.tile_cache and self.application._tile_cache.contains(self.mapfile, 
+            "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)):
             self.set_header('Content-Type', 'text/javascript')
-            self.jsonp(self.application._tile_cache.get(mapfile, 
-                "%d/%d/%d.%s" % (z, x, y, filetype)),
+            self.jsonp(self.application._tile_cache.get(self.mapfile, 
+                "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)),
                 self.get_argument('jsoncallback', None))
             self.finish()
             return
-        self.z = z
-        self.x = x
-        self.y = y
-        self.filetype = filetype
-        self.mapfile = mapfile
         self.application._map_cache.get(mapfile, self, self.async_callback(self.async_get))
 
     def async_get(self, mapnik_map):
@@ -98,26 +97,22 @@ class DataTileHandler(tornado.web.RequestHandler, TileLive):
             # TODO: this makes dangerous assumptions about the content of the file string
             mapnik_map.set_metawriter_property('tile_dir', 
                 self.application._tile_cache.local_dir(self.mapfile, ''))
+
             mapnik_map.set_metawriter_property('z', str(self.z))
             mapnik_map.set_metawriter_property('x', str(self.x))
             mapnik_map.set_metawriter_property('y', str(self.y))
+
             url = "%d/%d/%d.%s" % (self.z, self.x, self.y, 'png')
             self.application._tile_cache.prepare_dir(self.mapfile, url)
+
             mapnik.render_to_file(mapnik_map, 
                 self.application._tile_cache.local_url(self.mapfile, url))
-            json_url = "%d/%d/%d.%s" % (self.z, self.x, self.y, 'json')
-            if not os.path.isfile(self.application._tile_cache.local_url(self.mapfile, json_url)):
-                o = open(self.application._tile_cache.local_url(self.mapfile, json_url), 'w')
-                o.writelines("""
-                { "type": "FeatureCollection",
-                  "features": [
-                """)
-                o.close()
 
             self.set_header('Content-Type', 'text/javascript')
             self.jsonp(self.application._tile_cache.get(self.mapfile, 
                 "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)),
                 self.get_argument('jsoncallback', None))
+
             self.finish()
         except RuntimeError:
             logging.error('Map for %s failed to render, cache reset', self.mapfile)
@@ -127,48 +122,42 @@ class DataTileHandler(tornado.web.RequestHandler, TileLive):
                 self.retry = True
                 self.get(self.mapfile, self.z, self.x, self.y, self.filetype)
 
-
-
-
-
 class GridTileHandler(tornado.web.RequestHandler, TileLive):
-    """ handle all tile requests """
+    """ serve gridded tile data """
     @tornado.web.asynchronous
     def get(self, mapfile, z, x, y):
-        filetype = 'grid.json'
-        z, x, y = map(int, [z, x, y])
-        if options.tile_cache and self.application._tile_cache.contains(mapfile, 
-            "%d/%d/%d.%s" % (z, x, y, filetype)):
+        self.z, self.x, self.y = map(int, [z, x, y])
+        self.filetype = 'grid.json'
+        self.mapfile = mapfile
+        if options.tile_cache and self.application._tile_cache.contains(self.mapfile, 
+            "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)):
             logging.info('serving from cache')
             self.set_header('Content-Type', 'text/javascript')
-            self.write(self.application._tile_cache.get(mapfile, 
-                "%d/%d/%d.%s" % (z, x, y, filetype)))
+            self.write(self.application._tile_cache.get(self.mapfile, 
+                "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)))
             self.finish()
             return
-        self.z = z
-        self.x = x
-        self.y = y
-        self.filetype = filetype
-        self.mapfile = mapfile
-        self.application._map_cache.get(mapfile, self, self.async_callback(self.async_get))
+        self.application._map_cache.get(self.mapfile, self, self.async_callback(self.async_get))
 
     def async_get(self, mapnik_map):
         envelope = self.application._merc.xyz_to_envelope(self.x, self.y, self.z)
         mapnik_map.zoom_to_box(envelope)
         mapnik_map.buffer_size = options.buffer_size
         try:
-            # TODO: RLE
             fg = [] # feature grid
             for y in range(0, 256, 4):
                 for x in range(0, 256, 4):
                     featureset = mapnik_map.query_map_point(0,x,y)
                     added = False
                     for feature in featureset.features:
+                        # TODO: add in URL rather than here
                         fg.append(feature['CODE2'])
                         added = True
                     if not added:
                         fg.append('')
-            jsonp_str = self.jsonp({'features': str('|'.join(self.rle_encode(fg)))}, self.get_argument('callback', None))
+            jsonp_str = self.jsonp({
+              'features': str('|'.join(self.rle_encode(fg)))
+            }, self.get_argument('callback', None))
             logging.info('wrote jsonp')
             json_url = "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)
             self.application._tile_cache.set(self.mapfile, json_url, jsonp_str)
@@ -181,25 +170,21 @@ class GridTileHandler(tornado.web.RequestHandler, TileLive):
                 self.retry = True
                 self.get(self.mapfile, self.z, self.x, self.y, self.filetype)
 
-
-class TileHandler(tornado.web.RequestHandler):
+class TileHandler(tornado.web.RequestHandler, TileLive):
     """ handle all tile requests """
     @tornado.web.asynchronous
     def get(self, mapfile, z, x, y, filetype):
-        z, x, y = map(int, [z, x, y])
-        if options.tile_cache and self.application._tile_cache.contains(mapfile, 
-            "%d/%d/%d.%s" % (z, x, y, filetype)):
-            self.set_header('Content-Type', 'image/png')
-            self.write(self.application._tile_cache.get(mapfile, 
-                "%d/%d/%d.%s" % (z, x, y, filetype)))
-            self.finish()
-            return
-        self.z = z
-        self.x = x
-        self.y = y
+        self.z, self.x, self.y = map(int, [z, x, y])
         self.filetype = filetype
         self.mapfile = mapfile
-        self.application._map_cache.get(mapfile, self, self.async_callback(self.async_get))
+        if options.tile_cache and self.application._tile_cache.contains(self.mapfile, 
+            "%d/%d/%d.%s" % (self.z, self.x, self.y, filetype)):
+            self.set_header('Content-Type', 'image/png')
+            self.write(self.application._tile_cache.get(self.mapfile, 
+                "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)))
+            self.finish()
+            return
+        self.application._map_cache.get(self.mapfile, self, self.async_callback(self.async_get))
 
     def async_get(self, mapnik_map):
         envelope = self.application._merc.xyz_to_envelope(self.x, self.y, self.z)
@@ -254,7 +239,6 @@ class Application(tornado.web.Application):
 
         if options.tile_cache:
             self._tile_cache = cache.TileCache(directory='tiles')
-            # handlers.extend([(r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", DataTileHandler)])
             handlers.extend([(r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", DataTileHandler)])
             handlers.extend([(r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.grid\.json", GridTileHandler)])
 
@@ -268,7 +252,6 @@ class Application(tornado.web.Application):
         self._mercator = mapnik.Projection("+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +no_defs +over")
         self._im = mapnik.Image(options.tilesize, options.tilesize)
         self._map_cache = cache.MapCache(directory='mapfiles')
-
 
 def main():
     tornado.options.parse_command_line()

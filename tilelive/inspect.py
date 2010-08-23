@@ -4,10 +4,8 @@ import tornado
 from server import TileLive
 
 """
-  
   Data type inspection machinery. Could be sensitive; don't enable this
   all the time.
-
 """
 
 class InspectValueHandler(tornado.web.RequestHandler, TileLive):
@@ -88,21 +86,15 @@ class InspectDataHandler(tornado.web.RequestHandler, TileLive):
         return "Reimplementing"
 
     def async_get(self):
-        # shapefile_path = cached_compile.localize_shapefile('', self.get_url, urlcache = True)
-
-        # if not shapefile_path:
-        #     return false
-
-        json = json_encode({
+        self.jsonp({
           'data_url': self.get_url,
           'srs': self.shapefile_projection(shapefile_path + '.shp')
-        })
-        self.jsonp(json, self.get_argument('jsoncallback', None))
+        }, self.get_argument('jsoncallback', None))
         self.finish()
 
     def shapefile_projection(self, shapefile_path):
         """ given a path to a shapefile, get the proj4 string """
-
+        # TODO: remove OGR dependency
         shapefile = ogr.Open(shapefile_path)
         if shapefile is not None:
             layer = shapefile.GetLayer(0).GetSpatialRef()
@@ -121,21 +113,15 @@ class InspectDataHandler(tornado.web.RequestHandler, TileLive):
         return "Reimplementing"
 
     def async_get(self):
-        # shapefile_path = cached_compile.localize_shapefile('', self.get_url, urlcache = True)
-
-        # if not shapefile_path:
-        #     return false
-
-        json = json_encode({
+        self.jsonp({
           'data_url': self.get_url,
           'srs': self.shapefile_projection(shapefile_path + '.shp')
-        })
-        self.jsonp(json, self.get_argument('jsoncallback', None))
+        }, self.get_argument('jsoncallback', None))
         self.finish()
 
     def shapefile_projection(self, shapefile_path):
         """ given a path to a shapefile, get the proj4 string """
-
+        # TODO: remove OGR dependency
         shapefile = ogr.Open(shapefile_path)
         if shapefile is not None:
             layer = shapefile.GetLayer(0).GetSpatialRef()
@@ -143,6 +129,7 @@ class InspectDataHandler(tornado.web.RequestHandler, TileLive):
                 return layer.ExportToProj4()
         return False
 
+# Provide handlers to server
 handlers = [(r"/([^/]+)/fields.json", InspectFieldHandler),
   (r"/([^/]+)/data.json", InspectDataHandler),
   (r"/([^/]+)/([^/]+)/layer.json", InspectLayerHandler),
