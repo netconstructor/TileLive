@@ -12,6 +12,7 @@ import tornado.httpclient
 import tornado.httpserver
 import tornado.ioloop
 import tornado.web
+from tornado.escape import json_encode
 
 from tornado.options import define, options
 
@@ -84,7 +85,7 @@ class DataTileHandler(tornado.web.RequestHandler, TileLive):
             self.set_header('Content-Type', 'text/javascript')
             self.jsonp(self.application._tile_cache.get(self.mapfile, 
                 "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)),
-                self.get_argument('jsoncallback', None))
+                self.get_argument('callback', None))
             self.finish()
             return
         self.application._map_cache.get(mapfile, self, self.async_callback(self.async_get))
@@ -111,7 +112,7 @@ class DataTileHandler(tornado.web.RequestHandler, TileLive):
             self.set_header('Content-Type', 'text/javascript')
             self.jsonp(self.application._tile_cache.get(self.mapfile, 
                 "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)),
-                self.get_argument('jsoncallback', None))
+                self.get_argument('callback', None))
 
             self.finish()
         except RuntimeError:
@@ -151,7 +152,8 @@ class GridTileHandler(tornado.web.RequestHandler, TileLive):
                     added = False
                     for feature in featureset.features:
                         # TODO: add in URL rather than here
-                        fg.append(feature['CODE2'])
+                        # fg.append(feature['CODE2'])
+                        fg.append(feature['district_id_1'])
                         added = True
                     if not added:
                         fg.append('')
@@ -160,7 +162,7 @@ class GridTileHandler(tornado.web.RequestHandler, TileLive):
             }, self.get_argument('callback', None))
             logging.info('wrote jsonp')
             json_url = "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)
-            self.application._tile_cache.set(self.mapfile, json_url, jsonp_str)
+            self.application._tile_cache.set(self.mapfile, json_url, json_encode(jsonp_str))
             self.finish()
         except RuntimeError:
             logging.error('Map for %s failed to render, cache reset', self.mapfile)
@@ -191,9 +193,10 @@ class TileHandler(tornado.web.RequestHandler, TileLive):
         mapnik_map.zoom_to_box(envelope)
         mapnik_map.buffer_size = options.buffer_size
         try:
-            mapnik.render(mapnik_map, self.application._im)
+            im = mapnik.Image(options.tilesize, options.tilesize)
+            mapnik.render(mapnik_map, im)
             self.set_header('Content-Type', 'image/png')
-            im_data = self.application._im.tostring('png')
+            im_data = im.tostring('png')
             self.write(im_data)
             self.finish()
             if options.tile_cache:
@@ -250,7 +253,6 @@ class Application(tornado.web.Application):
         tornado.web.Application.__init__(self, handlers, **settings)
         self._merc = SphericalMercator(levels=23, size=256)
         self._mercator = mapnik.Projection("+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +no_defs +over")
-        self._im = mapnik.Image(options.tilesize, options.tilesize)
         self._map_cache = cache.MapCache(directory='mapfiles')
 
 def main():
