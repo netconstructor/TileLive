@@ -128,7 +128,7 @@ class GridTileHandler(tornado.web.RequestHandler, TileLive):
             logging.info('serving from cache')
             self.set_header('Content-Type', 'text/javascript')
             self.write(self.application._tile_cache.get(self.mapfile, 
-                "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)))
+                "%d/%d/%d.%s.%s" % (self.z, self.x, self.y, self.join_field, self.filetype)))
             self.finish()
             return
         self.application._map_cache.get(self.mapfile, self, self.async_callback(self.async_get))
@@ -153,7 +153,7 @@ class GridTileHandler(tornado.web.RequestHandler, TileLive):
             }, self.get_argument('callback', None))
             logging.info('wrote jsonp')
             json_url = "%d/%d/%d.%s.%s" % (self.z, self.x, self.y, self.join_field, self.filetype)
-            self.application._tile_cache.set(self.mapfile, json_url, json_encode(jsonp_str))
+            self.application._tile_cache.set(self.mapfile, json_url, jsonp_str)
             self.finish()
         except RuntimeError:
             logging.error('Map for %s failed to render, cache reset', self.mapfile)
