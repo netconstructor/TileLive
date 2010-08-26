@@ -1,10 +1,4 @@
 #!/usr/bin/env python
-
-__author__ = 'Dane Springmeyer (dbsgeo [ -a- ] gmail.com)'
-__copyright__ = 'Copyright 2009, Dane Springmeyer'
-__version__ = '0.1.3'
-__license__ = 'BSD'
-
 import os, logging
 from exceptions import KeyError
 
@@ -13,11 +7,10 @@ import tornado.httpserver
 import tornado.ioloop
 import tornado.web
 from tornado.escape import json_encode
-
 from tornado.options import define, options
 
 from sphericalmercator import SphericalMercator
-import cache
+import cache, safe64
 
 try:
     import mapnik2 as mapnik
@@ -76,7 +69,6 @@ class DataTileHandler(tornado.web.RequestHandler, TileLive):
     """ serve GeoJSON tiles created by metawriters """
     @tornado.web.asynchronous
     def get(self, mapfile, z, x, y, filetype):
-        # TODO: run tile getter to generate geojson
         self.z, self.x, self.y = map(int, [z, x, y])
         self.filetype = filetype
         self.mapfile = mapfile
@@ -126,12 +118,13 @@ class DataTileHandler(tornado.web.RequestHandler, TileLive):
 class GridTileHandler(tornado.web.RequestHandler, TileLive):
     """ serve gridded tile data """
     @tornado.web.asynchronous
-    def get(self, mapfile, z, x, y):
+    def get(self, mapfile, z, x, y, join_field):
         self.z, self.x, self.y = map(int, [z, x, y])
+        self.join_field = safe64.decode(join_field)
         self.filetype = 'grid.json'
         self.mapfile = mapfile
         if options.tile_cache and self.application._tile_cache.contains(self.mapfile, 
-            "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)):
+            "%d/%d/%d.%s.%s" % (self.z, self.x, self.y, self.join_field, self.filetype)):
             logging.info('serving from cache')
             self.set_header('Content-Type', 'text/javascript')
             self.write(self.application._tile_cache.get(self.mapfile, 
@@ -151,9 +144,7 @@ class GridTileHandler(tornado.web.RequestHandler, TileLive):
                     featureset = mapnik_map.query_map_point(0,x,y)
                     added = False
                     for feature in featureset.features:
-                        # TODO: add in URL rather than here
-                        # fg.append(feature['CODE2'])
-                        fg.append(feature['district_id_1'])
+                        fg.append(feature[self.join_field])
                         added = True
                     if not added:
                         fg.append('')
@@ -161,7 +152,7 @@ class GridTileHandler(tornado.web.RequestHandler, TileLive):
               'features': str('|'.join(self.rle_encode(fg)))
             }, self.get_argument('callback', None))
             logging.info('wrote jsonp')
-            json_url = "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)
+            json_url = "%d/%d/%d.%s.%s" % (self.z, self.x, self.y, self.join_field, self.filetype)
             self.application._tile_cache.set(self.mapfile, json_url, json_encode(jsonp_str))
             self.finish()
         except RuntimeError:
@@ -193,14 +184,7 @@ class TileHandler(tornado.web.RequestHandler, TileLive):
         mapnik_map.zoom_to_box(envelope)
         mapnik_map.buffer_size = options.buffer_size
         try:
-            im = mapnik.Image(options.tilesize, options.tilesize)
-            mapnik.render(mapnik_map, im)
-            self.set_header('Content-Type', 'image/png')
-            im_data = im.tostring('png')
-            self.write(im_data)
-            self.finish()
             if options.tile_cache:
-                # TODO: this makes dangerous assumptions about the content of the file string
                 mapnik_map.set_metawriter_property('tile_dir', 
                     self.application._tile_cache.local_dir(self.mapfile, ''))
                 mapnik_map.set_metawriter_property('z', str(self.z))
@@ -210,6 +194,20 @@ class TileHandler(tornado.web.RequestHandler, TileLive):
                 self.application._tile_cache.prepare_dir(self.mapfile, url)
                 mapnik.render_to_file(mapnik_map, 
                     self.application._tile_cache.local_url(self.mapfile, url))
+                if self.application._tile_cache.contains(self.mapfile, 
+                    "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)):
+                    self.set_header('Content-Type', 'image/png')
+                    self.write(self.application._tile_cache.get(self.mapfile, 
+                        "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)))
+                    self.finish()
+                return
+            else:
+                im = mapnik.Image(options.tilesize, options.tilesize)
+                mapnik.render(mapnik_map, im)
+                self.set_header('Content-Type', 'image/png')
+                im_data = im.tostring('png')
+                self.write(im_data)
+                self.finish()
             return
         except RuntimeError:
             logging.error('Map for %s failed to render, cache reset', self.mapfile)
@@ -241,9 +239,12 @@ class Application(tornado.web.Application):
             handlers.extend(point_query.handlers)
 
         if options.tile_cache:
+            # since metawriters are only written on render_to_file, the
+            # tile cache must be enabled to use their output
             self._tile_cache = cache.TileCache(directory='tiles')
-            handlers.extend([(r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", DataTileHandler)])
-            handlers.extend([(r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.grid\.json", GridTileHandler)])
+            handlers.extend([
+              (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", DataTileHandler),
+              (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.([^/\.]+)\.grid\.json", GridTileHandler)])
 
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), 'templates'),
