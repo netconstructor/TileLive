@@ -166,9 +166,10 @@ class GridTileHandler(tornado.web.RequestHandler, TileLive):
 class TileHandler(tornado.web.RequestHandler, TileLive):
     """ handle all tile requests """
     @tornado.web.asynchronous
-    def get(self, mapfile, z, x, y, filetype):
+    def get(self, layout, mapfile, z, x, y, filetype):
         self.z, self.x, self.y = map(int, [z, x, y])
         self.filetype = filetype
+        self.tms_style = (layout == 'tms')
         self.mapfile = mapfile
         if options.tile_cache and self.application._tile_cache.contains(self.mapfile, 
             "%d/%d/%d.%s" % (self.z, self.x, self.y, filetype)):
@@ -180,7 +181,7 @@ class TileHandler(tornado.web.RequestHandler, TileLive):
         self.application._map_cache.get(self.mapfile, self, self.async_callback(self.async_get))
 
     def async_get(self, mapnik_map):
-        envelope = self.application._merc.xyz_to_envelope(self.x, self.y, self.z)
+        envelope = self.application._merc.xyz_to_envelope(self.x, self.y, self.z, self.tms_style)
         mapnik_map.zoom_to_box(envelope)
         mapnik_map.buffer_size = options.buffer_size
         try:
@@ -227,7 +228,8 @@ class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
             (r"/", MainHandler),
-            (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(png|jpg|gif)", TileHandler),
+            (r"/(zxy)/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(png|jpg|gif)", TileHandler),
+            (r"/(tms)/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(png|jpg|gif)", TileHandler),
         ]
 
         if options.inspect:

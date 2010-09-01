@@ -151,14 +151,14 @@ if __name__ == "__main__":
     parser.add_option('-m', '--mml', dest='mapfile',
                       help='MML URL')
 
-    parser.add_option('-u', '--url', dest='url',
+    parser.add_option('-H', '--host', dest='url',
                       help='Map Server Base URL')
 
     parser.add_option('-b', '--bbox', dest='bbox',
                       help='Bounding box in floating point geographic coordinates: south west north east.',
                       type='float', nargs=4)
 
-    parser.add_option('-e', '--extension', dest='extension',
+    parser.add_option('-e', '--extension', dest='extension', default="png",
                       help='Optional file type for rendered tiles. Default value is "png".')
 
     options, zooms = parser.parse_args()
