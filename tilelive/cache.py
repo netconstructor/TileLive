@@ -63,7 +63,8 @@ class TileCache(TLCache):
 
     def local_url(self, mapfile, url):
         return os.path.join(self.directory, 
-            self.url2fs(mapfile), 
+            'tile', 
+            mapfile, 
             url)
 
     def local_dir(self, mapfile, url):

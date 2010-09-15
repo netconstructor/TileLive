@@ -32,6 +32,10 @@ define('geojson', default=False,
     help='allow output of GeoJSON', type=bool)
 define('tile_cache', default=True, 
     help='enable development tile cache', type=bool)
+define('tile_cache_dir', default='tiles', 
+    help='tile cache dir', type=str)
+define('map_cache_dir', default='mapfiles', 
+    help='tile cache dir', type=str)
 define('point_query', default=True, 
     help='enable point query', type=bool)
 
@@ -241,7 +245,7 @@ class Application(tornado.web.Application):
         if options.tile_cache:
             # since metawriters are only written on render_to_file, the
             # tile cache must be enabled to use their output
-            self._tile_cache = cache.TileCache(directory='tiles')
+            self._tile_cache = cache.TileCache(directory=str(options.tile_cache_dir))
             handlers.extend([
               (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", DataTileHandler),
               (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.([^/\.]+)\.grid\.json", GridTileHandler)])
@@ -254,7 +258,7 @@ class Application(tornado.web.Application):
         tornado.web.Application.__init__(self, handlers, **settings)
         self._merc = SphericalMercator(levels=23, size=256)
         self._mercator = mapnik.Projection("+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +no_defs +over")
-        self._map_cache = cache.MapCache(directory='mapfiles')
+        self._map_cache = cache.MapCache(directory=str(options.map_cache_dir))
 
 def main():
     tornado.options.parse_command_line()
