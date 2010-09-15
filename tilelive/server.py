@@ -68,7 +68,7 @@ class TileLive(object):
 class DataTileHandler(tornado.web.RequestHandler, TileLive):
     """ serve GeoJSON tiles created by metawriters """
     @tornado.web.asynchronous
-    def get(self, mapfile, z, x, y, filetype):
+    def get(self, layout, mapfile_64, z, x, y, filetype):
         self.z, self.x, self.y = map(int, [z, x, y])
         self.filetype = filetype
         self.mapfile = mapfile
@@ -118,7 +118,7 @@ class DataTileHandler(tornado.web.RequestHandler, TileLive):
 class GridTileHandler(tornado.web.RequestHandler, TileLive):
     """ serve gridded tile data """
     @tornado.web.asynchronous
-    def get(self, mapfile, z, x, y, join_field):
+    def get(self, layout, mapfile_64, z, x, y, join_field_64):
         self.z, self.x, self.y = map(int, [z, x, y])
         self.join_field = safe64.decode(join_field)
         self.filetype = 'grid.json'
@@ -228,7 +228,7 @@ class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
             (r"/", MainHandler),
-            (r"/(zxy)/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(png|jpg|gif)", TileHandler),
+            (r"/(tile|zxy)/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(png|jpg|gif)", TileHandler),
             (r"/(tms)/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(png|jpg|gif)", TileHandler),
         ]
 
@@ -245,8 +245,8 @@ class Application(tornado.web.Application):
             # tile cache must be enabled to use their output
             self._tile_cache = cache.TileCache(directory='tiles')
             handlers.extend([
-              (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", DataTileHandler),
-              (r"/tile/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.([^/\.]+)\.grid\.json", GridTileHandler)])
+              (r"/(zxy|tile)/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.(json)", DataTileHandler),
+              (r"/(zxy|tile)/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)\.([^/\.]+)\.grid\.json", GridTileHandler)])
 
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), 'templates'),

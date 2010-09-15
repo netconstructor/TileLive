@@ -153,6 +153,9 @@ if __name__ == "__main__":
 
     parser.add_option('-H', '--host', dest='url',
                       help='Map Server Base URL')
+    
+    parser.add_option('-T', '--tms', dest='tms', action="store_true",
+                      help='TMS style')
 
     parser.add_option('-b', '--bbox', dest='bbox',
                       help='Bounding box in floating point geographic coordinates: south west north east.',
@@ -165,6 +168,6 @@ if __name__ == "__main__":
 
     if options.url and options.extension:
         bbox = (-180.0,-90.0, 180.0,90.0)
-        render_tiles(bbox, int(zooms[0]), int(zooms[1]), options.mapfile, options.url)
+        render_tiles(bbox, int(zooms[0]), int(zooms[1]), options)
     else:
         parser.error("required arguments missing")
