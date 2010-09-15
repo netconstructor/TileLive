@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-import os, logging
+import os, logging, json
 from exceptions import KeyError
 
 import tornado.httpclient
 import tornado.httpserver
 import tornado.ioloop
 import tornado.web
-from tornado.escape import json_encode
+from tornado.escape import json_encode, json_decode
 from tornado.options import define, options
 
 from sphericalmercator import SphericalMercator
@@ -61,9 +61,14 @@ class TileLive(object):
             json = "%s(%s)" % (jsoncallback, json)
             self.set_header('Content-Type', 'text/javascript')
         else:
+            json = "%s" % json
             self.set_header('Content-Type', 'application/json')
         self.write(json)
         return json
+
+    def fString(self, mapfile_64, z, x, y):
+        """ GridTiles now use predetermined callbacks that can be done on both sides """
+        return "%s_%d_%d_%d" % (mapfile_64.replace('=', '_'), z, x, y)
 
 class DataTileHandler(tornado.web.RequestHandler, TileLive):
     """ serve GeoJSON tiles created by metawriters """
@@ -71,13 +76,16 @@ class DataTileHandler(tornado.web.RequestHandler, TileLive):
     def get(self, layout, mapfile_64, z, x, y, filetype):
         self.z, self.x, self.y = map(int, [z, x, y])
         self.filetype = filetype
-        self.mapfile = mapfile
-        if options.tile_cache and self.application._tile_cache.contains(self.mapfile, 
+        self.mapfile_64 = mapfile_64
+        code_string = self.fString(self.mapfile_64, self.z, self.x, self.y)
+        if options.tile_cache and self.application._tile_cache.contains(self.mapfile_64, 
             "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)):
             self.set_header('Content-Type', 'text/javascript')
-            self.jsonp(self.application._tile_cache.get(self.mapfile, 
-                "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)),
-                self.get_argument('callback', None))
+            self.jsonp(json_encode({
+              'features': json.loads(self.application._tile_cache.get(self.mapfile_64, 
+                "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)), 'ascii'),
+              'code_string': code_string}),
+                code_string)
             self.finish()
             return
         self.application._map_cache.get(mapfile, self, self.async_callback(self.async_get))
@@ -97,14 +105,17 @@ class DataTileHandler(tornado.web.RequestHandler, TileLive):
 
             url = "%d/%d/%d.%s" % (self.z, self.x, self.y, 'png')
             self.application._tile_cache.prepare_dir(self.mapfile, url)
+            code_string = self.fString(self.mapfile_64, self.z, self.x, self.y)
 
             mapnik.render_to_file(mapnik_map, 
                 self.application._tile_cache.local_url(self.mapfile, url))
 
             self.set_header('Content-Type', 'text/javascript')
-            self.jsonp(self.application._tile_cache.get(self.mapfile, 
-                "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)),
-                self.get_argument('callback', None))
+            self.jsonp(json_encode({
+              'features': json_decode(str(self.application._tile_cache.get(self.mapfile, 
+                "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)))),
+              'code_string': code_string}),
+                code_string)
 
             self.finish()
         except RuntimeError:
@@ -117,26 +128,29 @@ class DataTileHandler(tornado.web.RequestHandler, TileLive):
 
 class GridTileHandler(tornado.web.RequestHandler, TileLive):
     """ serve gridded tile data """
+
+
     @tornado.web.asynchronous
     def get(self, layout, mapfile_64, z, x, y, join_field_64):
         self.z, self.x, self.y = map(int, [z, x, y])
-        self.join_field = safe64.decode(join_field)
+        self.join_field = safe64.decode(join_field_64)
         self.filetype = 'grid.json'
-        self.mapfile = mapfile
-        if options.tile_cache and self.application._tile_cache.contains(self.mapfile, 
+        self.mapfile_64 = mapfile_64
+        if options.tile_cache and self.application._tile_cache.contains(self.mapfile_64, 
             "%d/%d/%d.%s.%s" % (self.z, self.x, self.y, self.join_field, self.filetype)):
             logging.info('serving from cache')
             self.set_header('Content-Type', 'text/javascript')
-            self.write(self.application._tile_cache.get(self.mapfile, 
+            self.write(self.application._tile_cache.get(self.mapfile_64, 
                 "%d/%d/%d.%s.%s" % (self.z, self.x, self.y, self.join_field, self.filetype)))
             self.finish()
             return
-        self.application._map_cache.get(self.mapfile, self, self.async_callback(self.async_get))
+        self.application._map_cache.get(self.mapfile_64, self, self.async_callback(self.async_get))
 
     def async_get(self, mapnik_map):
         envelope = self.application._merc.xyz_to_envelope(self.x, self.y, self.z)
         mapnik_map.zoom_to_box(envelope)
         mapnik_map.buffer_size = options.buffer_size
+        code_string = self.fString(self.mapfile_64, self.z, self.x, self.y)
         try:
             fg = [] # feature grid
             for y in range(0, 256, 4):
@@ -149,19 +163,20 @@ class GridTileHandler(tornado.web.RequestHandler, TileLive):
                     if not added:
                         fg.append('')
             jsonp_str = self.jsonp({
-              'features': str('|'.join(self.rle_encode(fg)))
-            }, self.get_argument('callback', None))
+              'features': str('|'.join(self.rle_encode(fg))),
+              'code_string': code_string
+            }, code_string)
             logging.info('wrote jsonp')
             json_url = "%d/%d/%d.%s.%s" % (self.z, self.x, self.y, self.join_field, self.filetype)
-            self.application._tile_cache.set(self.mapfile, json_url, jsonp_str)
+            self.application._tile_cache.set(self.mapfile_64, json_url, jsonp_str)
             self.finish()
         except RuntimeError:
-            logging.error('Map for %s failed to render, cache reset', self.mapfile)
-            self.application._map_cache.remove(self.mapfile)
+            logging.error('Map for %s failed to render, cache reset', self.mapfile_64)
+            self.application._map_cache.remove(self.mapfile_64)
             # Retry exactly once to re-render this tile.
             if not hasattr(self, 'retry'):
                 self.retry = True
-                self.get(self.mapfile, self.z, self.x, self.y, self.filetype)
+                self.get(self.mapfile_64, self.z, self.x, self.y, self.filetype)
 
 class TileHandler(tornado.web.RequestHandler, TileLive):
     """ handle all tile requests """
