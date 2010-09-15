@@ -53,8 +53,10 @@ class SphericalMercator(object):
         h = self.RAD_TO_DEG * ( 2 * math.atan(math.exp(g)) - 0.5 * math.pi)
         return (f,h)
     
-    def xyz_to_envelope(self,x,y,zoom):
+    def xyz_to_envelope(self,x,y,zoom,tms_style = False):
         """ Convert XYZ to mapnik.Envelope """
+        if tms_style:
+            y = (2**zoom-1) - y
         ll = (x * self.size,(y + 1) * self.size)
         ur = ((x + 1) * self.size, y * self.size)
         minx,miny = self.px_to_ll(ll,zoom)

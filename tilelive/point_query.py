@@ -6,7 +6,7 @@ from server import TileLive
 class PointQueryHandler(tornado.web.RequestHandler, TileLive):
     """ handle all tile requests """
     @tornado.web.asynchronous
-    def get(self, mapfile, x, y, filetype):
+    def get(self, layout, mapfile, x, y, filetype):
         self.x = x
         self.y = y
         self.filetype = filetype
@@ -28,4 +28,4 @@ class PointQueryHandler(tornado.web.RequestHandler, TileLive):
                 self.retry = True
                 self.get(self.mapfile, self.z, self.x, self.y, self.filetype)
 
-handlers = [(r"/tile/([^/]+)/([0-9]+)/([0-9]+)\.(json)", PointQueryHandler)]
+handlers = [(r"/(zxy|tile)/([^/]+)/([0-9]+)/([0-9]+)\.(json)", PointQueryHandler)]

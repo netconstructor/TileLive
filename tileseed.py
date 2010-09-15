@@ -71,12 +71,12 @@ class RenderThread:
         """ test a transfer by loading a file but not downloading it to anywhere """
         pts = urlparse(path)
         conn = httplib.HTTPConnection(pts.hostname, pts.port)
-        start = time.time()  
+        start = time.time()
         conn.request('GET', pts.path)
         request_time = time.time()
         resp = conn.getresponse()
         response_time = time.time()
-        conn.close()     
+        conn.close()
         print "%s took %.5f" % (path, (response_time - start))
 
     def loop(self):
@@ -92,8 +92,10 @@ class RenderThread:
             self.timed_transfer(tile_uri)
             self.q.task_done()
 
-def render_tiles(bbox, minZoom, maxZoom, mapfile, url):
-    print "render_tiles(",bbox, mapfile, url, ")"
+def render_tiles(bbox, minZoom, maxZoom, options):
+    mapfile = options.mapfile
+    url = options.url
+    print "render_tiles(",bbox, options.mapfile, options.url, ")"
 
     # Launch rendering threads
     queue = Queue(32)
@@ -115,24 +117,25 @@ def render_tiles(bbox, minZoom, maxZoom, mapfile, url):
         px0 = gprj.fromLLtoPixel(ll0,z)
         px1 = gprj.fromLLtoPixel(ll1,z)
 
-        # check if we have directories in place
         for x in range(int(px0[0]/256.0),int(px1[0]/256.0)+1):
             # Validate x co-ordinate
             if (x < 0) or (x >= 2**z):
                 continue
-            # check if we have directories in place
             for y in range(int(px0[1]/256.0),int(px1[1]/256.0)+1):
                 # Validate x co-ordinate
                 if (y < 0) or (y >= 2**z):
                     continue
+                if True:
+                    y = (2**z-1) - y
                 tile_uri = "%s/%s/%s/%d/%d/%d.png" % (
                         url.rstrip('/'),
-                        'tile',
+                        'tms', # TODO: make customizable
                         urlsafe_b64encode(options.mapfile),
                         z,
                         x,
                         y)
                 # Submit tile to be rendered into the queue
+                print "requesting %s" % tile_uri
                 t = (tile_uri, x, y, z)
                 queue.put(t)
 
@@ -151,20 +154,23 @@ if __name__ == "__main__":
     parser.add_option('-m', '--mml', dest='mapfile',
                       help='MML URL')
 
-    parser.add_option('-u', '--url', dest='url',
+    parser.add_option('-H', '--host', dest='url',
                       help='Map Server Base URL')
+    
+    parser.add_option('-T', '--tms', dest='tms', action="store_true",
+                      help='TMS style')
 
     parser.add_option('-b', '--bbox', dest='bbox',
                       help='Bounding box in floating point geographic coordinates: south west north east.',
                       type='float', nargs=4)
 
-    parser.add_option('-e', '--extension', dest='extension',
+    parser.add_option('-e', '--extension', dest='extension', default="png",
                       help='Optional file type for rendered tiles. Default value is "png".')
 
     options, zooms = parser.parse_args()
 
     if options.url and options.extension:
         bbox = (-180.0,-90.0, 180.0,90.0)
-        render_tiles(bbox, int(zooms[0]), int(zooms[1]), options.mapfile, options.url)
+        render_tiles(bbox, int(zooms[0]), int(zooms[1]), options)
     else:
         parser.error("required arguments missing")
