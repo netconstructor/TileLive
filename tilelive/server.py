@@ -135,6 +135,7 @@ class GridTileHandler(tornado.web.RequestHandler, TileLive):
     @tornado.web.asynchronous
     def get(self, layout, mapfile_64, z, x, y, join_field_64):
         self.z, self.x, self.y = map(int, [z, x, y])
+        self.join_field_64 =join_field_64
         self.join_field = safe64.decode(join_field_64)
         self.filetype = 'grid.json'
         self.mapfile_64 = mapfile_64
@@ -169,7 +170,7 @@ class GridTileHandler(tornado.web.RequestHandler, TileLive):
               'code_string': code_string
             }, code_string)
             logging.info('wrote jsonp')
-            json_url = "%d/%d/%d.%s.%s" % (self.z, self.x, self.y, self.join_field, self.filetype)
+            json_url = "%d/%d/%d.%s.%s" % (self.z, self.x, self.y, self.join_field_64, self.filetype)
             self.application._tile_cache.set(self.mapfile_64, json_url, jsonp_str)
             self.finish()
         except RuntimeError:
