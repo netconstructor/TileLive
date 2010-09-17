@@ -125,19 +125,32 @@ def render_tiles(bbox, minZoom, maxZoom, options):
                 # Validate x co-ordinate
                 if (y < 0) or (y >= 2**z):
                     continue
-                if True:
+                if options.tms == True:
                     y = (2**z-1) - y
                 tile_uri = "%s/%s/%s/%d/%d/%d.png" % (
                         url.rstrip('/'),
-                        'tms', # TODO: make customizable
+                        'zxy', # TODO: make customizable
                         urlsafe_b64encode(options.mapfile),
                         z,
                         x,
                         y)
+
                 # Submit tile to be rendered into the queue
                 print "requesting %s" % tile_uri
                 t = (tile_uri, x, y, z)
                 queue.put(t)
+                if options.grid:
+                    tile_uri = "%s/%s/%s/%d/%d/%d.%s.grid.json" % (
+                            url.rstrip('/'),
+                            'zxy', # TODO: make customizable
+                            urlsafe_b64encode(options.mapfile),
+                            z,
+                            x,
+                            y,
+                            urlsafe_b64encode(options.grid))
+                    t = (tile_uri, x, y, z)
+                    print "requesting %s" % tile_uri
+                    queue.put(t)
 
     # Signal render threads to exit by sending empty request to queue
     for i in range(NUM_THREADS):
@@ -160,6 +173,9 @@ if __name__ == "__main__":
     parser.add_option('-T', '--tms', dest='tms', action="store_true",
                       help='TMS style')
 
+    parser.add_option('-G', '--grid', dest='grid',
+                      help='Grid join field')
+
     parser.add_option('-b', '--bbox', dest='bbox',
                       help='Bounding box in floating point geographic coordinates: south west north east.',
                       type='float', nargs=4)
@@ -170,7 +186,6 @@ if __name__ == "__main__":
     options, zooms = parser.parse_args()
 
     if options.url and options.extension:
-        bbox = (-180.0,-90.0, 180.0,90.0)
-        render_tiles(bbox, int(zooms[0]), int(zooms[1]), options)
+        render_tiles(options.bbox, int(zooms[0]), int(zooms[1]), options)
     else:
         parser.error("required arguments missing")
