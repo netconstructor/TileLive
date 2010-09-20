@@ -1,3 +1,14 @@
+TileLive Changelog
+------------------
+
+- TileLive is a variant of TileLite using a different web server
+  (Tornado instead of WSGI) and a different tile-serving technique.
+
+Version 2.0.2
+-------------
+
+  * Completed static caching scheme for nginx
+
 TileLite Changelog
 ------------------
 

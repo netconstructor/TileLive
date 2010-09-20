@@ -3,9 +3,9 @@
 from distutils.core import setup
 
 # this version only updates the last number
-version = '0.1.3.3'
+version = '2.0.3'
 app = 'tilelive'
-description = 'Lightweight WSGI tile-server, written in Python, using Mapnik rendering and designed to serve tiles in the OSM/Google scheme.'
+description = 'Lightweight tile server, designed to serve dynamic tiles from remote datasets.'
 readme = file('README.txt','rb').read()
 
 setup(name='%s' % app,

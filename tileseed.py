@@ -20,7 +20,7 @@ DEG_TO_RAD = pi/180
 RAD_TO_DEG = 180/pi
 
 # Default number of rendering threads to spawn, should be roughly equal to number of CPU cores available
-NUM_THREADS = 4
+NUM_THREADS = 2
 
 
 def minmax (a,b,c):
@@ -129,7 +129,7 @@ def render_tiles(bbox, minZoom, maxZoom, options):
                     y = (2**z-1) - y
                 tile_uri = "%s/%s/%s/%d/%d/%d.png" % (
                         url.rstrip('/'),
-                        'zxy', # TODO: make customizable
+                        'tile', # TODO: make customizable
                         urlsafe_b64encode(options.mapfile),
                         z,
                         x,
@@ -142,7 +142,7 @@ def render_tiles(bbox, minZoom, maxZoom, options):
                 if options.grid:
                     tile_uri = "%s/%s/%s/%d/%d/%d.%s.grid.json" % (
                             url.rstrip('/'),
-                            'zxy', # TODO: make customizable
+                            'tile', # TODO: make customizable
                             urlsafe_b64encode(options.mapfile),
                             z,
                             x,
