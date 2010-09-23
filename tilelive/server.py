@@ -218,13 +218,15 @@ class TileHandler(tornado.web.RequestHandler, TileLive):
                     self.set_header('Content-Type', 'image/png')
                     self.write(self.application._tile_cache.get(self.mapfile, 
                         "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)))
-                    code_string = self.fString(self.mapfile, self.z, self.x, self.y)
-                    jsonp_str = "%s(%s)" % (code_string, json_encode({
-                      'features': json_decode(str(self.application._tile_cache.get(self.mapfile, 
-                        "%d/%d/%d.%s" % (self.z, self.x, self.y, 'json')))),
-                      'code_string': code_string}))
-                    self.application._tile_cache.set(self.mapfile,
-                      "%d/%d/%d.%s" % (self.z, self.x, self.y, 'json'), jsonp_str)
+                    if self.application._tile_cache.contains(self.mapfile, 
+                        "%d/%d/%d.%s" % (self.z, self.x, self.y, 'json')):
+                        code_string = self.fString(self.mapfile, self.z, self.x, self.y)
+                        jsonp_str = "%s(%s)" % (code_string, json_encode({
+                          'features': json_decode(str(self.application._tile_cache.get(self.mapfile, 
+                            "%d/%d/%d.%s" % (self.z, self.x, self.y, 'json')))),
+                          'code_string': code_string}))
+                        self.application._tile_cache.set(self.mapfile,
+                          "%d/%d/%d.%s" % (self.z, self.x, self.y, 'json'), jsonp_str)
                     self.finish()
                 return
             else:
