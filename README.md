@@ -1,6 +1,6 @@
-# TileLite
+# TileLive
 
-This is a branch of TileLite - it significantly changes the way that tiles are requested and data is stored. The main TileLite branch works as a traditional tile server - the user specifies a Mapnik XML file or Cascadenik file at startup and datasources are initialized at that point.
+_This is a branch of TileLite - it significantly changes the way that tiles are requested and data is stored. The main TileLite branch works as a traditional tile server - the user specifies a Mapnik XML file or Cascadenik file at startup and datasources are initialized at that point._
 
 In contrast, this branch doesn't require a mapping server to intially contain any layer configuration, data, or mapfiles. Instead, the data and mapfile for each request is specified *within the tile URL*. Performance is ensured by caching, so that tile requests of this type are typically as fast as the other system, and further performance tweaks make this branch faster in certain cases. However, it is necessary to underline the fact that the schemes for requesting tiles for the two applications are different and incompatible.
 
