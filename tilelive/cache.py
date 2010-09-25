@@ -144,25 +144,25 @@ class PreCache(TLCache):
     def unzip_shapefile(self, zipdata, base_dir, request):
         """ unzip a shapefile into a directory, creating the directory
         structure if it doesn't exist """
+        # try:
+        #     import pylzma
+        #     from py7zlib import Archive7z
+        #     zip_file = Archive7z(StringIO.StringIO(zipdata))
+        #     infos = zip_file.getnames()
+        # except ImportError:
         try:
-            import pylzma
-            from py7zlib import Archive7z
-            zip_file = Archive7z(StringIO.StringIO(zipdata))
-            infos = zip_file.getnames()
-        except ImportError:
-            try:
-                zip_file = zipfile.ZipFile(StringIO.StringIO(zipdata))
-                infos = zip_file.infolist()
-            except Exception:
-                logging.info('File is not a zipfile')
-                if not os.path.isdir(base_dir):
-                    os.makedirs(base_dir)
-                basename = os.path.basename(request.url)
-                file_name = os.path.normpath('%(base_dir)s/%(basename)s' % locals())
-                file = open(file_name, 'wb')
-                file.write(zipdata)
-                file.close()
-                return
+            zip_file = zipfile.ZipFile(StringIO.StringIO(zipdata))
+            infos = zip_file.infolist()
+        except Exception:
+            logging.info('File is not a zipfile')
+            if not os.path.isdir(base_dir):
+                os.makedirs(base_dir)
+            basename = os.path.basename(request.url)
+            file_name = os.path.normpath('%(base_dir)s/%(basename)s' % locals())
+            file = open(file_name, 'wb')
+            file.write(zipdata)
+            file.close()
+            return
 
         extensions = [os.path.splitext(info.filename)[1].lower() for info in infos]
         basenames  = [os.path.basename(info.filename).lower() for info in infos]
