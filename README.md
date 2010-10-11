@@ -66,9 +66,26 @@ For deployment, running a fast server like [Nginx](http://nginx.org/) in front o
 2. `python setup.py install`
 3. Run `liveserv.py` in your Terminal
 
+## Running in Production
+
+Typically TileLive in production typically means running it in a more complex stack than simply `liveserv`'ing. A setup looks like
+
+1. Nginx frontend, with a config similar to the one in sample_configuration. This will round-robin distribute requests across 4 TileLive backends
+2. TileLive backends, managed by [supervisord](http://supervisord.org/) or similar, running on a range of ports, like 8000-8003.
+3. Disk cache, in a mounted partition or `/tmp`
+
+### Clearing caches
+
+It occasionally becomes necessary to clear different kinds of caches:
+
+* Tile cache, if data/style is updated and tiles are cached. This can be cleared selectively by mapfile / domain. For instance, if you want to clear all tiles generated from a certain mapfile, find the mapfile part of their url, and `rm -rf /mnt/cache/tile/{that mapfile url}`
+* Mapfile cache, if mapfiles are updated
+* Static caches
+* Data cache, if downloaded data is invalid. However, it's more preferable to update the URL of now-resolving data, rather than resolve bad data.
+
 ## Mapfiles
 
-TileLiteLive has some expectations about provided mapfiles, given the great variety of mapfiles possible with Mapnik and its demands upon how data is handled.
+TileLive has some expectations about provided mapfiles, given the great variety of mapfiles possible with Mapnik and its demands upon how data is handled.
 
 In order to support data tiles (enabled whenever `--tile_cache` is set), the mapfile must contain a valid MetaWriter entry
 
