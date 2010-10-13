@@ -53,6 +53,7 @@ From the client perspective, this branch of TileLite could be re-requesting data
 This software is unsupported on Windows
 
 * Python 2.5 - 2.7
+* [Tornado](http://www.tornadoweb.org/documentation#download)
 * **Mapnik 2** is **required** to use the metawriter functionality in this branch.
 * [Cascadenik](http://code.google.com/p/mapnik-utils/wiki/Cascadenik)
  * [Mac OSX Installers](http://dbsgeo.com/downloads/)
