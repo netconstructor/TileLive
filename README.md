@@ -56,10 +56,16 @@ This software is unsupported on Windows
 * [Tornado](http://www.tornadoweb.org/documentation#download)
 * **Mapnik 2** is **required** to use the metawriter functionality in this branch.
 * [Cascadenik](http://code.google.com/p/mapnik-utils/wiki/Cascadenik)
- * [Mac OSX Installers](http://dbsgeo.com/downloads/)
+ * [Mac OSX Installers](http://dbsgeo.com/downloads/) | [Mac OSX from source](http://trac.mapnik.org/wiki/MacInstallation/Source)
  * [Installation on Linux](http://trac.mapnik.org/wiki/LinuxInstallation)
 
 For deployment, running a fast server like [Nginx](http://nginx.org/) in front of TileLite to serve static files is highly recommended.
+
+### Building Mapnik 2
+
+Using [Mapnik 2](http://trac.mapnik.org/wiki/Mapnik2) means using subversion `trunk` and compiling it yourself. There are not binary installers available yet for Mapnik 2. After running `scon.py configure` by sure that `gdal` is listing as an `INPUT_PLUGIN` (you may need to add it manually) in config.py. You'll want a line like:. 
+
+>  INPUT_PLUGINS = 'gdal,ogr,postgis,raster,shape'
 
 ## Installation and Running
 
