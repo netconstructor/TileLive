@@ -6,7 +6,7 @@ from distutils.core import setup
 version = '2.0.3'
 app = 'tilelive'
 description = 'Lightweight tile server, designed to serve dynamic tiles from remote datasets.'
-readme = file('README.txt','rb').read()
+readme = file('README.md','rb').read()
 
 setup(name='%s' % app,
       version = version,
