@@ -55,9 +55,15 @@ This software is unsupported on Windows
 * Python 2.5 - 2.7
 * [Tornado](http://www.tornadoweb.org/documentation#download)
 * **Mapnik 2** is **required** to use the metawriter functionality in this branch.
+
+        svn checkout -r2301 http://svn.mapnik.org/trunk
+
 * [Cascadenik](http://code.google.com/p/mapnik-utils/wiki/Cascadenik)
- * [Mac OSX Installers](http://dbsgeo.com/downloads/) | [Mac OSX from source](http://trac.mapnik.org/wiki/MacInstallation/Source)
- * [Installation on Linux](http://trac.mapnik.org/wiki/LinuxInstallation)
+
+        svn checkout -r1044 http://mapnik-utils.googlecode.com/svn/trunk/serverside/cascadenik
+
+* [Mac OSX Installers](http://dbsgeo.com/downloads/) | [Mac OSX from source](http://trac.mapnik.org/wiki/MacInstallation/Source)
+* [Installation on Linux](http://trac.mapnik.org/wiki/LinuxInstallation)
 
 For deployment, running a fast server like [Nginx](http://nginx.org/) in front of TileLite to serve static files is highly recommended.
 
