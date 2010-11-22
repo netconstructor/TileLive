@@ -75,9 +75,9 @@ Using [Mapnik 2](http://trac.mapnik.org/wiki/Mapnik2) means using subversion `tr
 
 ### Using MacPorts
 
-Using MacPorts to build and install Tilelive's dependencies is quite possible, but there are a few things to watch out for.
+Using MacPorts to build and install Tilelive's dependencies is possible, but there are a few things to watch out for.
 
-* Be sure that you install the Python bindings for the `boost` package. You can use a command like `port install boost +python26` to do this.
+* Be sure you compile Boost with the bindings for Python, ICU and Regex. You can use a command like `port install boost +python26+icu+regex` to do this.
 * MacPorts makes the Python `easy_install` utility available in the package `py26-setuptools`, but sure to install that and specify `easy_install-2.6` when using it to install software.
 
 ## Installation and Running
