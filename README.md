@@ -52,13 +52,13 @@ From the client perspective, this branch of TileLite could be re-requesting data
 
 This software is unsupported on Windows
 
-* Python 2.5 - 2.7
+* Python 2.5 - 2.7 with cssutils, pil and pycurl.
 * [Tornado](http://www.tornadoweb.org/documentation#download)
 * **Mapnik 2** is **required** to use the metawriter functionality in this branch.
 
         svn checkout -r2301 http://svn.mapnik.org/trunk
 
-* [Cascadenik](http://code.google.com/p/mapnik-utils/wiki/Cascadenik)
+* [Cascadenik](https://github.com/mapnik/Cascadenik/wiki/Cascadenik)
 
         svn checkout -r1044 http://mapnik-utils.googlecode.com/svn/trunk/serverside/cascadenik
 
