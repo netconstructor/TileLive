@@ -13,6 +13,14 @@ from osgeo import ogr
   all the time.
 """
 
+class InspectStatusHandler(tornado.web.RequestHandler, TileLive):
+    """ sample data from each datasource referenced by a mapfile """
+    def get(self):
+        self.jsonp(json_encode({
+            'status': True
+            }), self.get_argument('jsoncallback', None))
+        self.finish()
+
 class InspectValueHandler(tornado.web.RequestHandler, TileLive):
     """ sample data from each datasource referenced by a mapfile """
     @tornado.web.asynchronous
@@ -25,22 +33,22 @@ class InspectValueHandler(tornado.web.RequestHandler, TileLive):
         try:
             layer = self.layer_by_id(mapnik_map, self.layer_id)
 
-            field_values = [dict(f.properties).get(self.field_name)
+            field_values = [dict(f).get(self.field_name)
                 for f in layer.datasource.all_features()]
 
-            # start = 0 + int(self.get_argument('start', 0))
-            # end = int(self.get_argument('limit', 30)) + \
-            #     int(self.get_argument('start', 0))
+            start = 0 + int(self.get_argument('start', 0))
+            end = int(self.get_argument('limit', 30)) + \
+                int(self.get_argument('start', 0))
 
-            # stringlen = {'key': len} if isinstance(field_values[0], basestring) else {}
+            stringlen = {'key': len} if isinstance(field_values[0], basestring) else {}
 
-            # json = json_encode({
-            #     'min': min(field_values, **stringlen),
-            #     'max': max(field_values, **stringlen),
-            #     'count': len(set(field_values)),
-            #     'field': self.field_name,
-            #     'values': sorted(list(set(field_values)))[start:end]
-            # })
+            json = json_encode({
+                'min': min(field_values, **stringlen),
+                'max': max(field_values, **stringlen),
+                'count': len(set(field_values)),
+                'field': self.field_name,
+                'values': sorted(list(set(field_values)))[start:end]
+            })
             self.jsonp(json, self.get_argument('jsoncallback', None))
         except IndexError:
             self.write(json_encode({'error': 'Layer not found'}))
@@ -161,6 +169,7 @@ class InspectDataHandler(tornado.web.RequestHandler, TileLive):
 
 # Provide handlers to server
 handlers = [
+  (r"/status.json", InspectStatusHandler),
   (r"/([^/]+)/fields.json", InspectFieldHandler),
   (r"/([^/]+)/data.json", InspectDataHandler),
   (r"/([^/]+)/([^/]+)/layer.json", InspectLayerHandler),

@@ -144,10 +144,16 @@ class GridTileHandler(tornado.web.RequestHandler, TileLive):
             logging.info('serving from cache')
             self.set_header('Content-Type', 'text/javascript')
             self.write(self.application._tile_cache.get(self.mapfile_64, 
-                "%d/%d/%d.%s.%s" % (self.z, self.x, self.y, self.join_field, self.filetype)))
+                "%d/%d/%d.%s.%s" % (self.z,
+                    self.x,
+                    self.y,
+                    self.join_field,
+                    self.filetype)))
             self.finish()
             return
-        self.application._map_cache.get(self.mapfile_64, self, self.async_callback(self.async_get))
+        self.application._map_cache.get(self.mapfile_64,
+                self,
+                self.async_callback(self.async_get))
 
     def async_get(self, mapnik_map):
         envelope = self.application._merc.xyz_to_envelope(self.x, self.y, self.z)
@@ -170,7 +176,11 @@ class GridTileHandler(tornado.web.RequestHandler, TileLive):
               'code_string': code_string
             }, code_string)
             logging.info('wrote jsonp')
-            json_url = "%d/%d/%d.%s.%s" % (self.z, self.x, self.y, self.join_field_64, self.filetype)
+            json_url = "%d/%d/%d.%s.%s" % (self.z,
+                    self.x,
+                    self.y,
+                    self.join_field_64,
+                    self.filetype)
             self.application._tile_cache.set(self.mapfile_64, json_url, jsonp_str)
             self.finish()
         except RuntimeError:
@@ -196,10 +206,15 @@ class TileHandler(tornado.web.RequestHandler, TileLive):
                 "%d/%d/%d.%s" % (self.z, self.x, self.y, self.filetype)))
             self.finish()
             return
-        self.application._map_cache.get(self.mapfile, self, self.async_callback(self.async_get))
+        self.application._map_cache.get(self.mapfile,
+                self,
+                self.async_callback(self.async_get))
 
     def async_get(self, mapnik_map):
-        envelope = self.application._merc.xyz_to_envelope(self.x, self.y, self.z, self.tms_style)
+        envelope = self.application._merc.xyz_to_envelope(self.x,
+                self.y,
+                self.z,
+                self.tms_style)
         mapnik_map.zoom_to_box(envelope)
         mapnik_map.buffer_size = options.buffer_size
         try:
