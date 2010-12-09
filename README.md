@@ -52,13 +52,33 @@ From the client perspective, this branch of TileLite could be re-requesting data
 
 This software is unsupported on Windows
 
-* Python 2.5 - 2.7
+* Python 2.5 - 2.7 with cssutils, pil and pycurl.
+* [Tornado](http://www.tornadoweb.org/documentation#download)
 * **Mapnik 2** is **required** to use the metawriter functionality in this branch.
-* [Cascadenik](http://code.google.com/p/mapnik-utils/wiki/Cascadenik)
- * [Mac OSX Installers](http://dbsgeo.com/downloads/)
- * [Installation on Linux](http://trac.mapnik.org/wiki/LinuxInstallation)
+
+        svn checkout -r2301 http://svn.mapnik.org/trunk
+
+* [Cascadenik](https://github.com/mapnik/Cascadenik/wiki/Cascadenik)
+
+        svn checkout -r1044 http://mapnik-utils.googlecode.com/svn/trunk/serverside/cascadenik
+
+* [Mac OSX Installers](http://dbsgeo.com/downloads/) | [Mac OSX from source](http://trac.mapnik.org/wiki/MacInstallation/Source)
+* [Installation on Linux](http://trac.mapnik.org/wiki/LinuxInstallation)
 
 For deployment, running a fast server like [Nginx](http://nginx.org/) in front of TileLite to serve static files is highly recommended.
+
+### Building Mapnik 2
+
+Using [Mapnik 2](http://trac.mapnik.org/wiki/Mapnik2) means using subversion `trunk` and compiling it yourself. There are not binary installers available yet for Mapnik 2. After running `scon.py configure` by sure that `gdal` is listing as an `INPUT_PLUGIN` (you may need to add it manually) in config.py. You'll want a line like:. 
+
+>  INPUT_PLUGINS = 'gdal,ogr,postgis,raster,shape'
+
+### Using MacPorts
+
+Using MacPorts to build and install Tilelive's dependencies is possible, but there are a few things to watch out for.
+
+* Be sure you compile Boost with the bindings for Python, ICU and Regex. You can use a command like `port install boost +python26+icu+regex` to do this.
+* MacPorts makes the Python `easy_install` utility available in the package `py26-setuptools`, but sure to install that and specify `easy_install-2.6` when using it to install software.
 
 ## Installation and Running
 
