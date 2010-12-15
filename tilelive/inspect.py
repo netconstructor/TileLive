@@ -2,7 +2,7 @@
 
 import tornado
 from server import TileLive
-import safe64, cache, tempfile, os, logging
+import safe64, cache, tempfile, os, logging, mapnik2
 from tornado.escape import json_encode, json_decode
 from osgeo import ogr
 
@@ -18,7 +18,14 @@ class InspectStatusHandler(tornado.web.RequestHandler, TileLive):
     def get(self):
         self.jsonp(json_encode({
             'status': True
-            }), self.get_argument('jsoncallback', None))
+            }), self.get_argument('callback', None))
+        self.finish()
+
+class AbilitiesHandler(tornado.web.RequestHandler, TileLive):
+    def get(self):
+        self.jsonp(json_encode({
+            'fonts': [f for f in mapnik2.FontEngine.instance().face_names()]
+            }), self.get_argument('callback', None))
         self.finish()
 
 class InspectValueHandler(tornado.web.RequestHandler, TileLive):
@@ -49,11 +56,11 @@ class InspectValueHandler(tornado.web.RequestHandler, TileLive):
                 'field': self.field_name,
                 'values': sorted(list(set(field_values)))[start:end]
             })
-            self.jsonp(json, self.get_argument('jsoncallback', None))
+            self.jsonp(json, self.get_argument('callback', None))
         except IndexError:
-            self.jsonp({'error': 'Layer not found'}, self.get_argument('jsoncallback', None))
+            self.jsonp({'error': 'Layer not found'}, self.get_argument('callback', None))
         except Exception, e:
-            self.jsonp(json_encode({'error': 'Exception: %s' % e}), self.get_argument('jsoncallback', None))
+            self.jsonp(json_encode({'error': 'Exception: %s' % e}), self.get_argument('callback', None))
         self.finish()
 
 class InspectLayerHandler(tornado.web.RequestHandler, TileLive):
@@ -75,7 +82,7 @@ class InspectLayerHandler(tornado.web.RequestHandler, TileLive):
           'srs': self.shapefile_projection(shapefile_path)
         })
 
-        self.jsonp(json, self.get_argument('jsoncallback', None))
+        self.jsonp(json, self.get_argument('callback', None))
         self.finish()
 
     def shapefile_projection(self, shapefile_path):
@@ -102,7 +109,7 @@ class InspectDataHandler(tornado.web.RequestHandler, TileLive):
         self.jsonp({
           'data_url': self.get_url,
           'srs': self.shapefile_projection(shapefile_path + '.shp')
-        }, self.get_argument('jsoncallback', None))
+        }, self.get_argument('callback', None))
         self.finish()
 
     def shapefile_projection(self, shapefile_path):
@@ -131,7 +138,7 @@ class InspectFieldHandler(tornado.web.RequestHandler, TileLive):
                 'extent': self.layer_envelope(layer)
               }
             ) for layer in mapnik_map.layers]))
-        self.jsonp(json, self.get_argument('jsoncallback', None))
+        self.jsonp(json, self.get_argument('callback', None))
         self.finish()
 
     def layer_envelope(self, layer):
@@ -154,7 +161,7 @@ class InspectDataHandler(tornado.web.RequestHandler, TileLive):
         self.jsonp({
           'data_url': self.get_url,
           'srs': self.shapefile_projection(os.path.join(shapefile_dir, shapefile_path))
-        }, self.get_argument('jsoncallback', None))
+        }, self.get_argument('callback', None))
         self.finish()
 
     def shapefile_projection(self, shapefile_path):
@@ -170,6 +177,7 @@ class InspectDataHandler(tornado.web.RequestHandler, TileLive):
 # Provide handlers to server
 handlers = [
   (r"/status.json", InspectStatusHandler),
+  (r"/abilities.json", AbilitiesHandler),
   (r"/([^/]+)/fields.json", InspectFieldHandler),
   (r"/([^/]+)/data.json", InspectDataHandler),
   (r"/([^/]+)/([^/]+)/layer.json", InspectLayerHandler),
