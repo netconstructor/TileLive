@@ -258,7 +258,7 @@ class TileHandler(tornado.web.RequestHandler, TileLive):
             # Retry exactly once to re-render this tile.
             if not hasattr(self, 'retry'):
                 self.retry = True
-                self.get(self.mapfile, self.z, self.x, self.y, self.filetype)
+                self.get(self.mapfile, 'tms', self.z, self.x, self.y, self.filetype)
 
 class MainHandler(tornado.web.RequestHandler):
     """ home page, of little consequence """
