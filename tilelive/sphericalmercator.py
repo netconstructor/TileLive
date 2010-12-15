@@ -61,6 +61,6 @@ class SphericalMercator(object):
         ur = ((x + 1) * self.size, y * self.size)
         minx,miny = self.px_to_ll(ll,zoom)
         maxx,maxy = self.px_to_ll(ur,zoom)
-        lonlat_bbox = mapnik.Envelope(minx,miny,maxx,maxy)
+        lonlat_bbox = mapnik.Box2d(minx,miny,maxx,maxy)
         env = mercator.forward(lonlat_bbox)
         return env
