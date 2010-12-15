@@ -51,9 +51,9 @@ class InspectValueHandler(tornado.web.RequestHandler, TileLive):
             })
             self.jsonp(json, self.get_argument('jsoncallback', None))
         except IndexError:
-            self.write(json_encode({'error': 'Layer not found'}))
+            self.jsonp({'error': 'Layer not found'}, self.get_argument('jsoncallback', None))
         except Exception, e:
-            self.write(json_encode({'error': 'Exception: %s' % e}))
+            self.jsonp(json_encode({'error': 'Exception: %s' % e}), self.get_argument('jsoncallback', None))
         self.finish()
 
 class InspectLayerHandler(tornado.web.RequestHandler, TileLive):
